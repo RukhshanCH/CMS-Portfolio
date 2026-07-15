@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import type { ContentItem } from '../index';
 
 const API_URL = 'http://localhost:3001/api/content/project?status=published&sort=order';
@@ -6,6 +6,7 @@ const API_URL = 'http://localhost:3001/api/content/project?status=published&sort
 export default function Projects() {
   const [projects, setProjects] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState<string>('All');
 
   useEffect(() => {
     fetch(API_URL)
@@ -13,15 +14,29 @@ export default function Projects() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
-      .then((data: ContentItem[]) => {
-        console.log('Projects loaded:', data.length, data);
-        setProjects(data);
-      })
-      .catch((err) => {
-        console.error('Failed to load projects:', err);
-      })
+      .then((data: ContentItem[]) => setProjects(data))
+      .catch((err) => console.error('Failed to load projects:', err))
       .finally(() => setLoading(false));
   }, []);
+
+  // Extract unique categories from project data
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    projects.forEach((p) => {
+      const cat = String((p.data as Record<string, unknown>).category || '').trim();
+      if (cat) set.add(cat);
+    });
+    return ['All', ...Array.from(set).sort()];
+  }, [projects]);
+
+  // Filtered projects
+  const filtered = useMemo(() => {
+    if (activeCategory === 'All') return projects;
+    return projects.filter((p) => {
+      const cat = String((p.data as Record<string, unknown>).category || '').trim();
+      return cat === activeCategory;
+    });
+  }, [projects, activeCategory]);
 
   if (loading) {
     return (
@@ -54,17 +69,32 @@ export default function Projects() {
     <section id="projects" className="projects section">
       <div className="container">
         <h2 className="section-title">Featured Projects</h2>
-        <div className="projects-grid">
-          {projects.map((project, index) => {
-            const d = project.data as Record<string, unknown>;
 
-            // FIX: Check both camelCase and lowercase due to DB mismatch
+        {/* ─── CATEGORY FILTER ─── */}
+        {categories.length > 1 && (
+          <div className="project-filters">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                className={`filter-chip ${activeCategory === cat ? 'active' : ''}`}
+                onClick={() => setActiveCategory(cat)}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="projects-grid">
+          {filtered.map((project, index) => {
+            const d = project.data as Record<string, unknown>;
             const title = String(d.title || 'Untitled');
             const description = String(d.description || '');
             const technologies = (d.technologies as string[]) || [];
             const imageUrl = d.imageUrl ? String(d.imageUrl) : d.imageurl ? String(d.imageurl) : null;
             const liveUrl = d.liveUrl ? String(d.liveUrl) : d.liveurl ? String(d.liveurl) : null;
             const githubUrl = d.githubUrl ? String(d.githubUrl) : d.githuburl ? String(d.githuburl) : null;
+            const category = String(d.category || '');
 
             return (
               <article key={project._id} className="project-card">
@@ -77,7 +107,6 @@ export default function Projects() {
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.style.display = 'none';
-                        // Show placeholder on error
                         const placeholder = document.createElement('div');
                         placeholder.className = 'image-placeholder';
                         placeholder.innerHTML = `<span>Project ${index + 1}</span>`;
@@ -89,6 +118,7 @@ export default function Projects() {
                       <span>Project {index + 1}</span>
                     </div>
                   )}
+                  {category && <span className="project-category-badge">{category}</span>}
                 </div>
                 <div className="project-content">
                   <h3>{title}</h3>
@@ -102,22 +132,12 @@ export default function Projects() {
                   </div>
                   <div className="project-links">
                     {liveUrl && (
-                      <a
-                        href={liveUrl}
-                        className="link-primary"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
+                      <a href={liveUrl} className="link-primary" target="_blank" rel="noreferrer">
                         Live Demo →
                       </a>
                     )}
                     {githubUrl && (
-                      <a
-                        href={githubUrl}
-                        className="link-secondary"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
+                      <a href={githubUrl} className="link-secondary" target="_blank" rel="noreferrer">
                         GitHub
                       </a>
                     )}
@@ -127,6 +147,12 @@ export default function Projects() {
             );
           })}
         </div>
+
+        {filtered.length === 0 && activeCategory !== 'All' && (
+          <p className="empty-state" style={{ marginTop: '2rem' }}>
+            No projects in <strong>{activeCategory}</strong> category.
+          </p>
+        )}
       </div>
     </section>
   );
