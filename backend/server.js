@@ -24,7 +24,7 @@ const contentTypeSchema = new mongoose.Schema({
   fields: [{
     name: { type: String, required: true },                  // field key
     label: { type: String, required: true },                 // display label
-    type: { type: String, enum: ['text','textarea','number','boolean','date','url','array','select','richtext','image'], required: true },
+    type: { type: String, enum: ['text', 'textarea', 'number', 'boolean', 'date', 'url', 'array', 'select', 'richtext', 'image'], required: true },
     required: { type: Boolean, default: false },
     options: [String],                                       // for select fields
     defaultValue: mongoose.Schema.Types.Mixed
@@ -40,7 +40,7 @@ const contentSchema = new mongoose.Schema({
   contentType: { type: String, required: true, index: true }, // references contentType.name
   data: { type: mongoose.Schema.Types.Mixed, required: true }, // dynamic fields
   slug: { type: String, index: true },                        // for URL routing
-  status: { type: String, enum: ['draft','published','archived'], default: 'draft' },
+  status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
@@ -164,14 +164,24 @@ app.delete('/api/content-types/:id', asyncHandler(async (req, res) => {
 app.get('/api/content/:contentType', asyncHandler(async (req, res) => {
   const { contentType } = req.params;
   const { status = 'published', sort = 'createdAt', limit } = req.query;
-  
+
   const query = { contentType };
   if (status !== 'all') query.status = status;
-  
-  let q = Content.find(query).sort({ [sort]: 1 });
-  if (limit) q = q.limit(Number(limit));
-  
-  const items = await q;
+
+  let items;
+  if (sort === 'order') {
+    items = await Content.aggregate([
+      { $match: query },
+      { $addFields: { orderNum: { $toInt: { $ifNull: ['$data.order', 0] } } } },
+      { $sort: { orderNum: 1, createdAt: -1 } }
+    ]);
+    if (limit) items = items.slice(0, Number(limit));
+  } else {
+    let q = Content.find(query).sort({ [sort]: 1 });
+    if (limit) q = q.limit(Number(limit));
+    items = await q;
+  }
+
   res.json(items);
 }));
 
@@ -193,7 +203,7 @@ app.get('/api/content/:contentType/slug/:slug', asyncHandler(async (req, res) =>
 app.post('/api/content/:contentType', asyncHandler(async (req, res) => {
   const contentType = await ContentType.findOne({ name: req.params.contentType });
   if (!contentType) return res.status(404).json({ error: 'Content type not found' });
-  
+
   const item = await Content.create({
     contentType: req.params.contentType,
     data: req.body,
@@ -207,7 +217,7 @@ app.post('/api/content/:contentType', asyncHandler(async (req, res) => {
 app.put('/api/content/:contentType/:id', asyncHandler(async (req, res) => {
   const item = await Content.findOneAndUpdate(
     { contentType: req.params.contentType, _id: req.params.id },
-    { 
+    {
       data: req.body,
       slug: req.body.slug || req.body.title?.toLowerCase().replace(/\s+/g, '-'),
       status: req.body.status || 'published',

@@ -6,22 +6,20 @@ const API_BASE = 'http://localhost:3001/api';
 
 export default function ContentManager() {
   const { typeName } = useParams<{ typeName: string }>();
-  
+
   const [contentType, setContentType] = useState<ContentType | null>(null);
   const [items, setItems] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Modal
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [uploadingField, setUploadingField] = useState<string | null>(null);
-  
-  // Delete mode
+
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  
+
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -40,7 +38,7 @@ export default function ContentManager() {
   const loadItems = useCallback(() => {
     if (!typeName) return;
     setLoading(true);
-    fetch(`${API_BASE}/content/${typeName}?status=all&sort=createdAt`)
+    fetch(`${API_BASE}/content/${typeName}?status=all&sort=order`)
       .then(r => r.json())
       .then((data: ContentItem[]) => setItems(data))
       .catch(err => setError('Failed: ' + err.message))
@@ -56,11 +54,22 @@ export default function ContentManager() {
     setTimeout(() => setAlert(null), 3500);
   };
 
+  // ─── AUTO-INCREMENT ORDER ───
+  const getNextOrder = (): number => {
+    if (items.length === 0) return 1;
+    const orders = items.map(i => Number((i.data as Record<string, unknown>).order) || 0);
+    return Math.max(...orders) + 1;
+  };
+
   const openAdd = () => {
     const defaults: Record<string, unknown> = {};
     contentType?.fields.forEach(f => {
       if (f.defaultValue !== undefined) defaults[f.name] = f.defaultValue;
     });
+
+    // FIX: Auto-set order to next available number
+    defaults.order = getNextOrder();
+
     setFormData(defaults);
     setEditingId(null);
     setIsModalOpen(true);
@@ -76,6 +85,10 @@ export default function ContentManager() {
     e.preventDefault();
     if (!typeName) return;
 
+    // FIX: Convert number fields before saving
+    const payload = { ...formData };
+    if (payload.order !== undefined) payload.order = Number(payload.order) || 0;
+
     const url = editingId ? `${API_BASE}/content/${typeName}/${editingId}` : `${API_BASE}/content/${typeName}`;
     const method = editingId ? 'PUT' : 'POST';
 
@@ -83,10 +96,10 @@ export default function ContentManager() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error('Failed');
-      
+
       showAlert('success', editingId ? 'Updated!' : 'Created!');
       setIsModalOpen(false);
       loadItems();
@@ -107,7 +120,6 @@ export default function ContentManager() {
     }
   };
 
-  // ─── BULK DELETE ───
   const toggleDeleteMode = () => {
     setIsDeleteMode(prev => {
       if (prev) setSelectedIds(new Set());
@@ -151,7 +163,6 @@ export default function ContentManager() {
     }
   };
 
-  // ─── FILE UPLOAD ───
   const handleFileSelect = async (fieldName: string, file: File) => {
     if (!file) return;
     setUploadingField(fieldName);
@@ -192,8 +203,6 @@ export default function ContentManager() {
         return <input className="form-input" type="number" value={String(value)} onChange={e => onChange(Number(e.target.value))} placeholder={field.label} />;
       case 'array':
         return <input className="form-input" value={Array.isArray(value) ? value.join(', ') : String(value)} onChange={e => onChange(e.target.value.split(',').map(s => s.trim()))} placeholder={`${field.label} (comma separated)`} />;
-      
-      // ─── IMAGE UPLOAD FIELD ───
       case 'image':
         return (
           <div className="image-upload-field">
@@ -204,23 +213,14 @@ export default function ContentManager() {
               </div>
             )}
             <div className="image-upload-controls">
-              <input
-                className="form-input"
-                type="text"
-                value={String(value)}
-                onChange={e => onChange(e.target.value)}
-                placeholder="Paste image URL"
-              />
+              <input className="form-input" type="text" value={String(value)} onChange={e => onChange(e.target.value)} placeholder="Paste image URL" />
               <span className="upload-or">— OR —</span>
               <input
                 type="file"
                 accept="image/*"
                 ref={el => { fileInputRefs.current[field.name] = el; }}
                 style={{ display: 'none' }}
-                onChange={e => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFileSelect(field.name, file);
-                }}
+                onChange={e => { const file = e.target.files?.[0]; if (file) handleFileSelect(field.name, file); }}
               />
               <button
                 type="button"
@@ -233,7 +233,6 @@ export default function ContentManager() {
             </div>
           </div>
         );
-
       default:
         return <input className="form-input" type="text" value={String(value)} onChange={e => onChange(e.target.value)} placeholder={field.label} required={field.required} />;
     }
@@ -265,11 +264,7 @@ export default function ContentManager() {
               <button className="btn-admin btn-select" onClick={selectAll}>
                 {selectedIds.size === items.length ? 'Deselect All' : 'Select All'}
               </button>
-              <button
-                className="btn-admin btn-delete-confirm"
-                disabled={selectedIds.size === 0}
-                onClick={handleBulkDelete}
-              >
+              <button className="btn-admin btn-delete-confirm" disabled={selectedIds.size === 0} onClick={handleBulkDelete}>
                 Delete ({selectedIds.size})
               </button>
               <button className="btn-admin btn-cancel" onClick={toggleDeleteMode}>Cancel</button>
@@ -304,28 +299,20 @@ export default function ContentManager() {
               {items.map(item => (
                 <tr key={item._id} className={isDeleteMode && selectedIds.has(item._id) ? 'selected-row' : ''}>
                   {isDeleteMode && (
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(item._id)}
-                        onChange={() => toggleSelection(item._id)}
-                      />
-                    </td>
+                    <td><input type="checkbox" checked={selectedIds.has(item._id)} onChange={() => toggleSelection(item._id)} /></td>
                   )}
                   {contentType.fields.map(f => (
                     <td key={f.name}>
                       {f.type === 'boolean' ? (item.data[f.name] ? '✅' : '❌') :
-                       f.type === 'array' ? (item.data[f.name] as string[])?.join(', ') :
-                       f.type === 'image' && item.data[f.name] ? (
-                         <img src={String(item.data[f.name])} alt="" style={{ width: 60, height: 40, objectFit: 'cover', borderRadius: 4 }} />
-                       ) :
-                       String(item.data[f.name] ?? '-')}
+                        f.type === 'array' ? (item.data[f.name] as string[])?.join(', ') :
+                          f.type === 'image' && item.data[f.name] ? (
+                            <img src={String(item.data[f.name])} alt="" style={{ width: 60, height: 40, objectFit: 'cover', borderRadius: 4 }} />
+                          ) :
+                            String(item.data[f.name] ?? '-')}
                     </td>
                   ))}
+                  <td><span className={`status-badge status-${item.status}`}>{item.status}</span></td>
                   <td>
-                    <span className={`status-badge status-${item.status}`}>{item.status}</span>
-                  </td>
-                  <td style={{textAlign: 'center'}}>
                     {!isDeleteMode && (
                       <>
                         <button className="btn-edit-card" onClick={() => openEdit(item)}>Edit</button>
@@ -340,7 +327,6 @@ export default function ContentManager() {
         </div>
       )}
 
-      {/* Modal */}
       {isModalOpen && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setIsModalOpen(false)}>
           <div className="modal modal-large">
