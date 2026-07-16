@@ -117,8 +117,10 @@ export default function Projects() {
             const githubUrl = d.githubUrl ? String(d.githubUrl) : d.githuburl ? String(d.githuburl) : null;
             const category = String(d.category || '');
             const isFeatured = Boolean(d.featured);
-            const instaUrl = d.liveUrl ? String(d.instaUrl) : d.instaurl ? String(d.instaurl) : null;
-            const fbUrl = d.liveUrl ? String(d.lfbrl) : d.lifbl ? String(d.livfb) : null;
+            const instaUrl = d.instaUrl ? String(d.instaUrl) : d.instaurl ? String(d.instaurl) : null;
+            const fbUrl = d.fbUrl ? String(d.fbUrl) : d.fburl ? String(d.fburl) : null;
+            const behanceUrl = d.behanceUrl ? String(d.behanceUrl) : d.behanceurl ? String(d.behanceurl) : null;
+            const linkedinUrl = d.linkedinUrl ? String(d.linkedinUrl) : d.linkedinurl ? String(d.linkedinurl) : null;
 
             return (
               <article key={project._id} className={`project-card ${isFeatured ? 'project-featured' : ''}`}>
@@ -176,6 +178,18 @@ export default function Projects() {
                     {fbUrl && (
                       <a href={fbUrl} className="link-secondary" target="_blank" rel="noreferrer">
                         Facebook
+                      </a>
+                    )}
+                  </div>
+                  <div className="project-links">
+                    {behanceUrl && (
+                      <a href={behanceUrl} className="link-primary" target="_blank" rel="noreferrer">
+                        Behance
+                      </a>
+                    )}
+                    {linkedinUrl && (
+                      <a href={linkedinUrl} className="link-secondary" target="_blank" rel="noreferrer">
+                        Linkedin
                       </a>
                     )}
                   </div>

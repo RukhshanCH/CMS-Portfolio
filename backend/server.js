@@ -73,9 +73,14 @@ async function seedDefaults() {
       fields: [
         { name: 'title', label: 'Title', type: 'text', required: true },
         { name: 'description', label: 'Description', type: 'textarea' },
-        { name: 'category', label: 'Category', type: 'text' },
+        {
+          name: 'category',
+          label: 'Category',
+          type: 'select',
+          options: ['Web Development', 'Mobile App', 'AI/ML', 'Design', 'DevOps', 'Other']
+        },
         { name: 'technologies', label: 'Technologies', type: 'array' },
-        { name: 'imageUrl', label: 'Project  Image', type: 'image' },
+        { name: 'imageUrl', label: 'Project Image', type: 'image' },
         { name: 'liveUrl', label: 'Live URL', type: 'url' },
         { name: 'githubUrl', label: 'GitHub URL', type: 'url' },
         { name: 'featured', label: 'Featured', type: 'boolean', defaultValue: false },

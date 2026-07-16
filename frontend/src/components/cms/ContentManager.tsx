@@ -23,31 +23,41 @@ export default function ContentManager() {
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  useEffect(() => {
+  // ─── FETCH CONTENT TYPE (fresh every time) ───
+  const fetchContentType = useCallback(async () => {
     if (!typeName) return;
-    fetch(`${API_BASE}/content-types`)
-      .then(r => r.json())
-      .then((types: ContentType[]) => {
-        const ct = types.find(t => t.name === typeName);
-        setContentType(ct || null);
-        if (!ct) setError(`Content type "${typeName}" not found`);
-      })
-      .catch(err => setError('Failed to load: ' + err.message));
+    try {
+      const res = await fetch(`${API_BASE}/content-types`);
+      const types: ContentType[] = await res.json();
+      const ct = types.find(t => t.name === typeName);
+      setContentType(ct || null);
+      if (!ct) setError(`Content type "${typeName}" not found`);
+    } catch (err) {
+      setError('Failed to load content type');
+    }
   }, [typeName]);
 
-  const loadItems = useCallback(() => {
+  // ─── FETCH ITEMS ───
+  const loadItems = useCallback(async () => {
     if (!typeName) return;
     setLoading(true);
-    fetch(`${API_BASE}/content/${typeName}?status=all&sort=order`)
-      .then(r => r.json())
-      .then((data: ContentItem[]) => setItems(data))
-      .catch(err => setError('Failed: ' + err.message))
-      .finally(() => setLoading(false));
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/content/${typeName}?status=all&sort=order`);
+      const data: ContentItem[] = await res.json();
+      setItems(data);
+    } catch (err) {
+      setError('Failed to load items');
+    } finally {
+      setLoading(false);
+    }
   }, [typeName]);
 
+  // Load on mount and when typeName changes
   useEffect(() => {
+    fetchContentType();
     loadItems();
-  }, [loadItems]);
+  }, [fetchContentType, loadItems]);
 
   const showAlert = (type: 'success' | 'error', text: string) => {
     setAlert({ type, text });
@@ -61,35 +71,39 @@ export default function ContentManager() {
     return Math.max(...orders) + 1;
   };
 
-  const openAdd = () => {
-    const defaults: Record<string, unknown> = {};
-    contentType?.fields.forEach(f => {
-      if (f.defaultValue !== undefined) defaults[f.name] = f.defaultValue;
-    });
+  // ─── OPEN MODAL (re-fetches schema to get latest changes) ───
+  const openModal = async (item?: ContentItem) => {
+    // CRITICAL: Re-fetch content type so we have the latest schema
+    await fetchContentType();
 
-    // FIX: Auto-set order to next available number
-    defaults.order = getNextOrder();
-
-    setFormData(defaults);
-    setEditingId(null);
+    if (item) {
+      setFormData({ ...item.data });
+      setEditingId(item._id);
+    } else {
+      const defaults: Record<string, unknown> = {};
+      contentType?.fields.forEach(f => {
+        if (f.defaultValue !== undefined) defaults[f.name] = f.defaultValue;
+      });
+      defaults.order = getNextOrder();
+      setFormData(defaults);
+      setEditingId(null);
+    }
     setIsModalOpen(true);
   };
 
-  const openEdit = (item: ContentItem) => {
-    setFormData({ ...item.data });
-    setEditingId(item._id);
-    setIsModalOpen(true);
-  };
+  const openAdd = () => openModal();
+  const openEdit = (item: ContentItem) => openModal(item);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!typeName) return;
 
-    // FIX: Convert number fields before saving
     const payload = { ...formData };
     if (payload.order !== undefined) payload.order = Number(payload.order) || 0;
 
-    const url = editingId ? `${API_BASE}/content/${typeName}/${editingId}` : `${API_BASE}/content/${typeName}`;
+    const url = editingId
+      ? `${API_BASE}/content/${typeName}/${editingId}`
+      : `${API_BASE}/content/${typeName}`;
     const method = editingId ? 'PUT' : 'POST';
 
     try {
@@ -192,6 +206,7 @@ export default function ContentManager() {
     switch (field.type) {
       case 'textarea':
         return <textarea className="form-input" rows={3} value={String(value)} onChange={e => onChange(e.target.value)} placeholder={field.label} />;
+
       case 'boolean':
         return (
           <label className="form-checkbox">
@@ -199,10 +214,23 @@ export default function ContentManager() {
             <span>{field.label}</span>
           </label>
         );
+
       case 'number':
         return <input className="form-input" type="number" value={String(value)} onChange={e => onChange(Number(e.target.value))} placeholder={field.label} />;
+
       case 'array':
         return <input className="form-input" value={Array.isArray(value) ? value.join(', ') : String(value)} onChange={e => onChange(e.target.value.split(',').map(s => s.trim()))} placeholder={`${field.label} (comma separated)`} />;
+
+      case 'select':
+        return (
+          <select className="form-input" value={String(value)} onChange={e => onChange(e.target.value)}>
+            <option value="">Select {field.label}</option>
+            {field.options?.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        );
+
       case 'image':
         return (
           <div className="image-upload-field">
@@ -233,12 +261,13 @@ export default function ContentManager() {
             </div>
           </div>
         );
+
       default:
         return <input className="form-input" type="text" value={String(value)} onChange={e => onChange(e.target.value)} placeholder={field.label} required={field.required} />;
     }
   };
 
-  if (error) {
+  if (error && !contentType) {
     return (
       <div className="cms-content-manager">
         <div className="cms-header"><h1>⚠️ Error</h1></div>
@@ -308,7 +337,10 @@ export default function ContentManager() {
                           f.type === 'image' && item.data[f.name] ? (
                             <img src={String(item.data[f.name])} alt="" style={{ width: 60, height: 40, objectFit: 'cover', borderRadius: 4 }} />
                           ) :
-                            String(item.data[f.name] ?? '-')}
+                            f.type === 'select' ? (
+                              <span className="tag">{String(item.data[f.name] || '-')}</span>
+                            ) :
+                              String(item.data[f.name] ?? '-')}
                     </td>
                   ))}
                   <td><span className={`status-badge status-${item.status}`}>{item.status}</span></td>
@@ -327,6 +359,7 @@ export default function ContentManager() {
         </div>
       )}
 
+      {/* Modal */}
       {isModalOpen && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setIsModalOpen(false)}>
           <div className="modal modal-large">

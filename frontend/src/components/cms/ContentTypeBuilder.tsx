@@ -12,7 +12,7 @@ const FIELD_TYPES = [
   { value: 'array', label: 'Array (comma separated)' },
   { value: 'select', label: 'Select Dropdown' },
   { value: 'richtext', label: 'Rich Text' },
-  { value: 'image', label: 'Image URL' },
+  { value: 'image', label: 'Image Upload' },
 ] as const;
 
 const emptyField: ContentField = {
@@ -32,6 +32,9 @@ export default function ContentTypeBuilder() {
   const [fields, setFields] = useState<ContentField[]>([{ ...emptyField }]);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // For managing options inline
+  const [optionInputs, setOptionInputs] = useState<Record<number, string>>({});
+
   useEffect(() => {
     refreshContentTypes();
   }, []);
@@ -46,6 +49,7 @@ export default function ContentTypeBuilder() {
     setLabel('');
     setIcon('📄');
     setFields([{ ...emptyField }]);
+    setOptionInputs({});
     setEditingId(null);
   };
 
@@ -59,20 +63,72 @@ export default function ContentTypeBuilder() {
     setName(ct.name);
     setLabel(ct.label);
     setIcon(ct.icon);
-    setFields(ct.fields.length > 0 ? [...ct.fields] : [{ ...emptyField }]);
+    setFields(ct.fields.length > 0 ? ct.fields.map(f => ({ ...f })) : [{ ...emptyField }]);
+    setOptionInputs({});
     setIsModalOpen(true);
   };
 
-  const addField = () => setFields([...fields, { ...emptyField }]);
+  const addField = () => {
+    setFields([...fields, { ...emptyField }]);
+  };
 
   const removeField = (index: number) => {
     setFields(fields.filter((_, i) => i !== index));
+    setOptionInputs(prev => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
   };
 
   const updateField = (index: number, key: keyof ContentField, value: unknown) => {
     const updated = [...fields];
     updated[index] = { ...updated[index], [key]: value };
+
+    // Reset options when switching away from select
+    if (key === 'type' && value !== 'select') {
+      delete updated[index].options;
+    }
+    // Initialize options when switching to select
+    if (key === 'type' && value === 'select' && !updated[index].options) {
+      updated[index].options = [];
+    }
+
     setFields(updated);
+  };
+
+  // ─── OPTIONS MANAGEMENT ───
+  const addOption = (fieldIndex: number) => {
+    const inputVal = optionInputs[fieldIndex]?.trim();
+    if (!inputVal) return;
+
+    const updated = [...fields];
+    const currentOptions = updated[fieldIndex].options || [];
+    if (currentOptions.includes(inputVal)) {
+      showAlert('error', 'Option already exists');
+      return;
+    }
+
+    updated[fieldIndex].options = [...currentOptions, inputVal];
+    setFields(updated);
+    setOptionInputs(prev => ({ ...prev, [fieldIndex]: '' }));
+  };
+
+  const removeOption = (fieldIndex: number, optionIndex: number) => {
+    const updated = [...fields];
+    updated[fieldIndex].options = (updated[fieldIndex].options || []).filter((_, i) => i !== optionIndex);
+    setFields(updated);
+  };
+
+  const handleOptionInputChange = (fieldIndex: number, value: string) => {
+    setOptionInputs(prev => ({ ...prev, [fieldIndex]: value }));
+  };
+
+  const handleOptionKeyDown = (e: React.KeyboardEvent, fieldIndex: number) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addOption(fieldIndex);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,6 +143,14 @@ export default function ContentTypeBuilder() {
     if (validFields.length === 0) {
       showAlert('error', 'At least one field is required');
       return;
+    }
+
+    // Validate select fields have options
+    for (const f of validFields) {
+      if (f.type === 'select' && (!f.options || f.options.length === 0)) {
+        showAlert('error', `Field "${f.label}" is a dropdown but has no options`);
+        return;
+      }
     }
 
     const payload = {
@@ -158,7 +222,7 @@ export default function ContentTypeBuilder() {
               <div className="ct-fields-list">
                 {ct.fields.map((f) => (
                   <span key={f.name} className="ct-field-tag">
-                    {f.label} <small>({f.type})</small>
+                    {f.label} <small>({f.type}{f.type === 'select' && f.options ? ` • ${f.options.length} options` : ''})</small>
                   </span>
                 ))}
               </div>
@@ -221,40 +285,83 @@ export default function ContentTypeBuilder() {
                 </div>
 
                 {fields.map((field, index) => (
-                  <div key={index} className="field-row">
-                    <input
-                      className="form-input"
-                      placeholder="Field name"
-                      value={field.name}
-                      onChange={(e) => updateField(index, 'name', e.target.value)}
-                    />
-                    <input
-                      className="form-input"
-                      placeholder="Field label"
-                      value={field.label}
-                      onChange={(e) => updateField(index, 'label', e.target.value)}
-                    />
-                    <select
-                      className="form-input"
-                      value={field.type}
-                      onChange={(e) => updateField(index, 'type', e.target.value)}
-                    >
-                      {FIELD_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>{t.label}</option>
-                      ))}
-                    </select>
-                    <label className="form-checkbox inline">
+                  <div key={index} className="field-row-wrapper">
+                    <div className="field-row">
                       <input
-                        type="checkbox"
-                        checked={field.required}
-                        onChange={(e) => updateField(index, 'required', e.target.checked)}
+                        className="form-input"
+                        placeholder="Field name"
+                        value={field.name}
+                        onChange={(e) => updateField(index, 'name', e.target.value)}
                       />
-                      Required
-                    </label>
-                    {fields.length > 1 && (
-                      <button type="button" className="btn-delete-small" onClick={() => removeField(index)}>
-                        Remove
-                      </button>
+                      <input
+                        className="form-input"
+                        placeholder="Field label"
+                        value={field.label}
+                        onChange={(e) => updateField(index, 'label', e.target.value)}
+                      />
+                      <select
+                        className="form-input"
+                        value={field.type}
+                        onChange={(e) => updateField(index, 'type', e.target.value)}
+                      >
+                        {FIELD_TYPES.map((t) => (
+                          <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                      </select>
+                      <label className="form-checkbox inline">
+                        <input
+                          type="checkbox"
+                          checked={field.required}
+                          onChange={(e) => updateField(index, 'required', e.target.checked)}
+                        />
+                        Required
+                      </label>
+                      {fields.length > 1 && (
+                        <button type="button" className="btn-delete-small" onClick={() => removeField(index)}>
+                          Remove
+                        </button>
+                      )}
+                    </div>
+
+                    {/* ─── OPTIONS MANAGER FOR SELECT FIELDS ─── */}
+                    {field.type === 'select' && (
+                      <div className="options-manager">
+                        <label className="form-label">Dropdown Options</label>
+
+                        <div className="options-list">
+                          {(field.options || []).map((opt, optIdx) => (
+                            <span key={optIdx} className="option-chip">
+                              {opt}
+                              <button
+                                type="button"
+                                className="option-remove"
+                                onClick={() => removeOption(index, optIdx)}
+                                title="Remove option"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+
+                        <div className="option-add-row">
+                          <input
+                            className="form-input"
+                            type="text"
+                            placeholder="Type option and press Enter"
+                            value={optionInputs[index] || ''}
+                            onChange={(e) => handleOptionInputChange(index, e.target.value)}
+                            onKeyDown={(e) => handleOptionKeyDown(e, index)}
+                          />
+                          <button
+                            type="button"
+                            className="btn-admin btn-add"
+                            onClick={() => addOption(index)}
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 ))}

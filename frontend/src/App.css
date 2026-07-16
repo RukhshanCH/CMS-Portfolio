@@ -1684,12 +1684,99 @@ a {
   color: var(--dark);
 }
 
+/* === Field Row Wrapper === */
+.field-row-wrapper {
+  background: white;
+  border: 1px solid var(--gray);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
 .field-row {
   display: grid;
   grid-template-columns: 1.5fr 1.5fr 1fr auto auto;
   gap: 0.75rem;
   align-items: center;
+}
+
+/* === Options Manager === */
+.options-manager {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--gray);
+}
+
+.options-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   margin-bottom: 0.75rem;
+  min-height: 2rem;
+}
+
+.option-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--accent-bg);
+  color: var(--secondary);
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: 1px solid var(--accent-soft);
+}
+
+.option-remove {
+  background: none;
+  border: none;
+  color: #dc2626;
+  font-size: 1.1rem;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  line-height: 1;
+  margin-left: 0.2rem;
+}
+
+.option-remove:hover {
+  background: #fef2f2;
+}
+
+.option-add-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.option-add-row .form-input {
+  flex: 1;
+}
+
+.option-add-row .btn-admin {
+  padding: 0.6rem 1.2rem;
+  font-size: 0.85rem;
+}
+
+/* === Content Type Card Shows Option Count === */
+.ct-field-tag small {
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+/* === Responsive === */
+@media (max-width: 768px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .option-add-row {
+    flex-direction: column;
+  }
 }
 
 .section-row {
