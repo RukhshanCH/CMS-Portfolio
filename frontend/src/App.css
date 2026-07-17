@@ -2164,3 +2164,147 @@ a {
   margin-left: -12px;
   border: 2px solid white;
 }
+
+/* === Draggable Image Grid === */
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+
+.image-grid-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid var(--accent-soft);
+  cursor: grab;
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+}
+
+.image-grid-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.image-grid-item.dragging {
+  opacity: 0.4;
+  border: 2px dashed var(--primary);
+  cursor: grabbing;
+}
+
+/* Drag Handle */
+.drag-handle {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 24px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  color: var(--text-light);
+  font-size: 12px;
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.image-grid-item:hover .drag-handle {
+  opacity: 1;
+}
+
+.image-grid-item.dragging .drag-handle {
+  cursor: grabbing;
+}
+
+/* Image Order Badge */
+.image-order-badge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  width: 22px;
+  height: 22px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  z-index: 2;
+}
+
+/* Remove Button */
+.image-remove-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #dc2626;
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 0.2s, background 0.2s;
+}
+
+.image-grid-item:hover .image-remove-btn {
+  opacity: 1;
+}
+
+.image-remove-btn:hover {
+  background: #b91c1c;
+}
+
+.image-grid-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none; /* Prevent image drag interfering */
+}
+
+/* === Drag Over State === */
+.multi-image-field {
+  transition: background 0.3s, border 0.3s;
+  border-radius: var(--radius);
+  padding: 0.5rem;
+  margin: -0.5rem;
+}
+
+.multi-image-field.drag-over {
+  background: var(--accent-bg);
+  border: 2px dashed var(--accent);
+}
+
+/* === Drop Zone (Empty State) === */
+.image-drop-zone {
+  border: 2px dashed var(--gray);
+  border-radius: var(--radius);
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-light);
+  transition: border-color 0.3s, background 0.3s;
+}
+
+.image-drop-zone:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.image-drop-zone p {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { FaTimes, FaUpload, FaImage } from 'react-icons/fa';
+import { FaTimes, FaUpload, FaImage, FaGripVertical } from 'react-icons/fa';
 import type { ContentType, ContentItem } from '../../index';
 
 const API_BASE = 'http://localhost:3001/api';
@@ -24,6 +24,10 @@ export default function ContentManager() {
 
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  // Drag state
+  const [dragOverField, setDragOverField] = useState<string | null>(null);
+  const [draggedImage, setDraggedImage] = useState<{ field: string; index: number } | null>(null);
 
   const fetchContentType = useCallback(async () => {
     if (!typeName) return;
@@ -224,7 +228,6 @@ export default function ContentManager() {
       }
     }
 
-    // Merge with existing images
     setFormData(prev => ({
       ...prev,
       [fieldName]: [...currentImages, ...newUrls],
@@ -236,6 +239,39 @@ export default function ContentManager() {
     if (newUrls.length > 0) {
       showAlert('success', `${newUrls.length} image(s) uploaded!`);
     }
+  };
+
+  // ─── DRAG AND DROP REORDERING ───
+  const handleDragStart = (fieldName: string, index: number) => {
+    setDraggedImage({ field: fieldName, index });
+  };
+
+  const handleDragOver = (e: React.DragEvent, fieldName: string) => {
+    e.preventDefault();
+    setDragOverField(fieldName);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverField(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, fieldName: string, dropIndex: number) => {
+    e.preventDefault();
+    setDragOverField(null);
+
+    if (!draggedImage || draggedImage.field !== fieldName) return;
+
+    const images = [...((formData[fieldName] as string[]) || [])];
+    const [moved] = images.splice(draggedImage.index, 1);
+    images.splice(dropIndex, 0, moved);
+
+    setFormData(prev => ({ ...prev, [fieldName]: images }));
+    setDraggedImage(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedImage(null);
+    setDragOverField(null);
   };
 
   const removeImage = (fieldName: string, index: number) => {
@@ -264,19 +300,33 @@ export default function ContentManager() {
         return <input className="form-input" type="number" value={String(value)} onChange={e => onChange(Number(e.target.value))} placeholder={field.label} />;
 
       case 'array':
-        // Check if this is an image array (field name contains 'image' or 'images')
         const isImageArray = field.name.toLowerCase().includes('image');
 
         if (isImageArray) {
           const images = (formData[field.name] as string[]) || [];
+          const isDragOver = dragOverField === field.name;
 
           return (
-            <div className="multi-image-field">
-              {/* Existing Images Grid */}
+            <div
+              className={`multi-image-field ${isDragOver ? 'drag-over' : ''}`}
+              onDragOver={e => handleDragOver(e, field.name)}
+              onDragLeave={handleDragLeave}
+            >
+              {/* Draggable Image Grid */}
               {images.length > 0 && (
                 <div className="image-grid">
                   {images.map((url, idx) => (
-                    <div key={idx} className="image-grid-item">
+                    <div
+                      key={`${field.name}-${idx}`}
+                      className={`image-grid-item ${draggedImage?.field === field.name && draggedImage?.index === idx ? 'dragging' : ''}`}
+                      draggable
+                      onDragStart={() => handleDragStart(field.name, idx)}
+                      onDragEnd={handleDragEnd}
+                      onDrop={e => handleDrop(e, field.name, idx)}
+                    >
+                      <div className="drag-handle">
+                        <FaGripVertical />
+                      </div>
                       <img src={url} alt={`Image ${idx + 1}`} />
                       <button
                         type="button"
@@ -286,8 +336,16 @@ export default function ContentManager() {
                       >
                         <FaTimes />
                       </button>
+                      <span className="image-order-badge">{idx + 1}</span>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {images.length === 0 && (
+                <div className="image-drop-zone">
+                  <FaImage size={32} color="var(--text-light)" />
+                  <p>No images yet. Upload some below.</p>
                 </div>
               )}
 
@@ -318,12 +376,14 @@ export default function ContentManager() {
                   onClick={() => fileInputRefs.current[field.name]?.click()}
                   disabled={uploadingField === field.name}
                 >
-                  <FaUpload />
+                  <span style={{ marginRight: 6, display: 'inline-flex', alignItems: 'center' }}>
+                    <FaUpload />
+                  </span>
                   {uploadingField === field.name ? 'Uploading...' : 'Upload Multiple Images'}
                 </button>
               </div>
 
-              {/* Progress indicators */}
+              {/* Progress */}
               {Object.keys(uploadProgress).length > 0 && (
                 <div className="upload-progress">
                   {Object.entries(uploadProgress).map(([key, progress]) => (
@@ -337,7 +397,6 @@ export default function ContentManager() {
           );
         }
 
-        // Regular array (non-image)
         return <input className="form-input" value={Array.isArray(value) ? value.join(', ') : String(value)} onChange={e => onChange(e.target.value.split(',').map(s => s.trim()))} placeholder={`${field.label} (comma separated)`} />;
 
       case 'select':
@@ -380,7 +439,9 @@ export default function ContentManager() {
                 onClick={() => fileInputRefs.current[field.name]?.click()}
                 disabled={uploadingField === field.name}
               >
-                <FaImage />
+                <span style={{ marginRight: 6, display: 'inline-flex', alignItems: 'center' }}>
+                  <FaImage />
+                </span>
                 {uploadingField === field.name ? 'Uploading...' : 'Upload Image'}
               </button>
             </div>
