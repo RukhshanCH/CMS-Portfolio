@@ -532,7 +532,9 @@ export default function ContentManager() {
                 {contentType.fields.map(f => <th key={f.name}>{f.label}</th>)}
                 <th>Status</th>
                 <th>Actions</th>
-                <th>Preview</th>
+                {typeName === 'theme' && !isDeleteMode && (
+                  <th>Preview</th>
+                )}
               </tr>
             </thead>
             <tbody>
