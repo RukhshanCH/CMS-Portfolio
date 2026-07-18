@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { FaTimes, FaUpload, FaImage, FaGripVertical } from 'react-icons/fa';
 import type { ContentType, ContentItem } from '../../index';
+import ThemePreview from './ThemePreview';
 
 const API_BASE = 'http://localhost:3001/api';
 
@@ -24,6 +25,8 @@ export default function ContentManager() {
 
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const [previewItem, setPreviewItem] = useState<ContentItem | null>(null);
 
   // Drag state
   const [dragOverField, setDragOverField] = useState<string | null>(null);
@@ -119,6 +122,23 @@ export default function ContentManager() {
       loadItems();
     } catch {
       showAlert('error', 'Request failed');
+    } finally {
+      // In ContentManager.tsx, after successful save
+      if (typeName === 'theme' && formData.featured) {
+        // Unfeature all other themes via API
+        fetch(`${API_BASE}/content/theme?status=all`)
+          .then(r => r.json())
+          .then((themes: ContentItem[]) => {
+            const others = themes.filter(t => t._id !== editingId);
+            Promise.all(others.map(t =>
+              fetch(`${API_BASE}/content/theme/${t._id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...t.data, featured: false })
+              })
+            ));
+          });
+      }
     }
   };
 
@@ -508,6 +528,7 @@ export default function ContentManager() {
                 {contentType.fields.map(f => <th key={f.name}>{f.label}</th>)}
                 <th>Status</th>
                 <th>Actions</th>
+                <th>Preview</th>
               </tr>
             </thead>
             <tbody>
@@ -548,6 +569,17 @@ export default function ContentManager() {
                       </>
                     )}
                   </td>
+                  {typeName === 'theme' && !isDeleteMode && (
+                    <td>
+                      <button
+                        className="btn-edit-card"
+                        onClick={() => setPreviewItem(item)}
+                        style={{ background: 'var(--accent-bg)', color: 'var(--secondary)' }}
+                      >
+                        👁️ Preview
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -574,6 +606,27 @@ export default function ContentManager() {
                 <button type="submit" className="btn-admin btn-add">{editingId ? 'Update' : 'Create'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Preview Modal */}
+      {previewItem && typeName === 'theme' && (
+        <div className="modal-overlay" onClick={() => setPreviewItem(null)}>
+          <div className="modal modal-large" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>👁️ Preview: {String(previewItem.data.title || previewItem.data.name || 'Theme')}</h2>
+              <button className="modal-close" onClick={() => setPreviewItem(null)}>×</button>
+            </div>
+            <ThemePreview previewData={previewItem.data as Record<string, unknown>} />
+            <div className="modal-actions">
+              <button className="btn-admin btn-cancel" onClick={() => setPreviewItem(null)}>Close</button>
+              <button
+                className="btn-admin btn-add"
+                onClick={() => { setPreviewItem(null); openEdit(previewItem); }}
+              >
+                Edit This Theme
+              </button>
+            </div>
           </div>
         </div>
       )}

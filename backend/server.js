@@ -145,9 +145,37 @@ async function seedDefaults() {
         { name: 'buttons', label: 'Buttons', type: 'array' },
         { name: 'backgroungImage', label: 'Background Image', type: 'image' }
       ]
+    },
+    {
+      name: 'theme',
+      label: 'Theme',
+      icon: '🎨',
+      fields: [
+        { name: 'name', label: 'Theme Name', type: 'text', defaultValue: 'Default' },
+        { name: 'primary', label: 'Primary Color', type: 'text', defaultValue: '#3b82f6' },
+        { name: 'primaryDark', label: 'Primary Dark', type: 'text', defaultValue: '#2563eb' },
+        { name: 'secondary', label: 'Secondary Color', type: 'text', defaultValue: '#8b5cf6' },
+        { name: 'accent', label: 'Accent Color', type: 'text', defaultValue: '#4ade80' },
+        { name: 'accentSoft', label: 'Accent Soft', type: 'text', defaultValue: '#bbf7d0' },
+        { name: 'accentBg', label: 'Accent Background', type: 'text', defaultValue: '#f0fdf4' },
+        { name: 'dark', label: 'Dark Color', type: 'text', defaultValue: '#1e1b4b' },
+        { name: 'light', label: 'Light Color', type: 'text', defaultValue: '#ffffff' },
+        { name: 'gray', label: 'Gray', type: 'text', defaultValue: '#e2e8f0' },
+        { name: 'grayWarm', label: 'Gray Warm', type: 'text', defaultValue: '#f1f5f9' },
+        { name: 'text', label: 'Text Color', type: 'text', defaultValue: '#334155' },
+        { name: 'textLight', label: 'Text Light', type: 'text', defaultValue: '#64748b' },
+        { name: 'radius', label: 'Border Radius (px)', type: 'text', defaultValue: '12' },
+        { name: 'maxWidth', label: 'Max Width (px)', type: 'text', defaultValue: '1200' },
+        { name: 'fontFamily', label: 'Font Family', type: 'select', options: ['system', 'inter', 'roboto', 'poppins', 'montserrat'] },
+        { name: 'gradientDirection', label: 'Gradient Direction', type: 'select', options: ['135deg', '90deg', '180deg', '45deg'] },
+        { name: 'cardStyle', label: 'Card Style', type: 'select', options: ['rounded', 'sharp', 'glass'] },
+        { name: 'buttonStyle', label: 'Button Style', type: 'select', options: ['gradient', 'solid', 'outline'] },
+        { name: 'enableAnimations', label: 'Enable Animations', type: 'boolean', defaultValue: true },
+        { name: 'darkMode', label: 'Dark Mode', type: 'boolean', defaultValue: false },
+        { name: "featured", label: "Active Theme", type: "boolean", required: false, defaultValue: false }
+      ]
     }
   ];
-
   for (const type of types) {
     const existing = await ContentType.findOne({ name: type.name });
     if (!existing) {
@@ -352,3 +380,37 @@ app.delete('/api/upload/:filename', (req, res) => {
     res.status(404).json({ error: 'File not found' });
   }
 });
+
+// GET active theme (featured = true)
+app.get('/api/theme', asyncHandler(async (req, res) => {
+  const theme = await Content.findOne({ contentType: 'theme', status: 'published', 'data.featured': true });
+
+  if (!theme) {
+    // Fallback: return default theme
+    return res.json({
+      data: {
+        primary: '#3b82f6',
+        primaryDark: '#2563eb',
+        secondary: '#8b5cf6',
+        accent: '#4ade80',
+        accentSoft: '#bbf7d0',
+        accentBg: '#f0fdf4',
+        dark: '#1e1b4b',
+        light: '#ffffff',
+        gray: '#e2e8f0',
+        grayWarm: '#f1f5f9',
+        text: '#334155',
+        textLight: '#64748b',
+        radius: '12',
+        maxWidth: '1200',
+        fontFamily: 'system',
+        gradientDirection: '135deg',
+        cardStyle: 'rounded',
+        buttonStyle: 'gradient',
+        enableAnimations: true,
+        darkMode: false
+      }
+    });
+  }
+  res.json(theme);
+}));

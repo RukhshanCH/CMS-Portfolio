@@ -13,6 +13,7 @@ import ContentTypeBuilder from './components/cms/ContentTypeBuilder';
 import PageBuilder from './components/cms/PageBuilder';
 import './App.css';
 import type { ContentItem } from '.';
+import { ThemeProvider } from './context/ThemeContext';
 
 const ADMIN_PASSWORD: string = (import.meta as any).env?.VITE_ADMIN_PASSWORD || 'password';
 
@@ -94,6 +95,7 @@ function AppContent() {
                 <Link to="/admin/content/about" className="cms-nav-link">👨‍💻 About</Link>
                 <Link to="/admin/content/project" className="cms-nav-link">🚀 Projects</Link>
                 <Link to="/admin/content/skill" className="cms-nav-link">⭐ Skills</Link>
+                <Link to="/admin/content/theme" className="cms-nav-link">🎨 Theme</Link>
               </nav>
             </aside>
             <main className="cms-main">
@@ -137,7 +139,9 @@ function AppContent() {
 function App() {
   return (
     <BrowserRouter>
-      <AppContent />
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
     </BrowserRouter>
   );
 }
