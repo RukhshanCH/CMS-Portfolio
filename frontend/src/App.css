@@ -4,6 +4,7 @@
   --primary-dark: #2563eb;
   --secondary: #8b5cf6;
   --accent: #4ade80;
+  --accent-light: color-mix(in srgb, var(--accent) 30%, transparent);
   --accent-soft: #bbf7d0;
   --accent-bg: #f0fdf4;
   --dark: #1e1b4b;
@@ -438,7 +439,7 @@ a {
 
 /* === About === */
 .about {
-  background: linear-gradient(180deg, transparent 0%, rgba(187, 247, 208, 0.3) 50%, transparent 100%);
+  background: linear-gradient(180deg, transparent 0%, var(--accent-light) 50%, transparent 100%);
 }
 
 .about-grid {
@@ -1661,7 +1662,7 @@ a {
   color: var(--dark);
 }
 
-.stat-label {
+.stat-label-cms {
   color: var(--text-light);
   font-size: var(--font-size-md);
 }

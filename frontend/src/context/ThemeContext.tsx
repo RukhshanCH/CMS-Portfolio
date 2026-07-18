@@ -21,6 +21,12 @@ interface ThemeData {
     buttonStyle: string;
     enableAnimations: boolean;
     darkMode: boolean;
+
+    success?: string;
+    warning?: string;
+    danger?: string;
+
+    featured?: string;
 }
 
 const defaultTheme: ThemeData = {
@@ -93,6 +99,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         root.style.setProperty('--max-width', `${theme.maxWidth}px`);
         root.style.setProperty('--gradient-direction', theme.gradientDirection);
 
+        root.style.setProperty('--success', theme.success || '#22c55e');
+        root.style.setProperty('--warning', theme.warning || '#f59e0b');
+        root.style.setProperty('--danger', theme.danger || '#ef4444');
+        root.style.setProperty('--featured', theme.featured || '#fbbf24');
+
         // Font family
         const fontMap: Record<string, string> = {
             system: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
@@ -120,9 +131,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
         // Animations
         if (!theme.enableAnimations) {
-            root.style.setProperty('--transition-speed', '0s');
+            root.style.setProperty('--transition-base', '0s');
+            root.style.setProperty('--transition-fast', '0s');
+            root.style.setProperty('--transition-slow', '0s');
         } else {
-            root.style.removeProperty('--transition-speed');
+            root.style.removeProperty('--transition-base');
+            root.style.removeProperty('--transition-fast');
+            root.style.removeProperty('--transition-slow');
         }
     }, [theme]);
 

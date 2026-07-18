@@ -67,7 +67,7 @@ export default function AdminDashboard() {
             <div className="stat-icon">{card.icon}</div>
             <div className="stat-info">
               <div className="stat-value">{card.value}</div>
-              <div className="stat-label">{card.label}</div>
+              <div className="stat-label-cms">{card.label}</div>
             </div>
           </div>
         ))}

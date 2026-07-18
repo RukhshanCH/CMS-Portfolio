@@ -151,28 +151,45 @@ async function seedDefaults() {
       label: 'Theme',
       icon: '🎨',
       fields: [
+        // === Theme Identity ===
         { name: 'name', label: 'Theme Name', type: 'text', defaultValue: 'Default' },
+        { name: 'isActive', label: 'Active Theme', type: 'boolean', required: false, defaultValue: false },
+
+        // === Core Palette ===
         { name: 'primary', label: 'Primary Color', type: 'text', defaultValue: '#3b82f6' },
         { name: 'primaryDark', label: 'Primary Dark', type: 'text', defaultValue: '#2563eb' },
         { name: 'secondary', label: 'Secondary Color', type: 'text', defaultValue: '#8b5cf6' },
         { name: 'accent', label: 'Accent Color', type: 'text', defaultValue: '#4ade80' },
         { name: 'accentSoft', label: 'Accent Soft', type: 'text', defaultValue: '#bbf7d0' },
         { name: 'accentBg', label: 'Accent Background', type: 'text', defaultValue: '#f0fdf4' },
+
+        // === Semantic Colors ===
+        { name: 'success', label: 'Success Color', type: 'text', defaultValue: '#22c55e' },
+        { name: 'warning', label: 'Warning Color', type: 'text', defaultValue: '#f59e0b' },
+        { name: 'danger', label: 'Danger Color', type: 'text', defaultValue: '#ef4444' },
+        { name: 'featured', label: 'Featured Badge Color', type: 'text', defaultValue: '#fbbf24' },
+
+        // === Neutral Scale ===
         { name: 'dark', label: 'Dark Color', type: 'text', defaultValue: '#1e1b4b' },
         { name: 'light', label: 'Light Color', type: 'text', defaultValue: '#ffffff' },
         { name: 'gray', label: 'Gray', type: 'text', defaultValue: '#e2e8f0' },
         { name: 'grayWarm', label: 'Gray Warm', type: 'text', defaultValue: '#f1f5f9' },
         { name: 'text', label: 'Text Color', type: 'text', defaultValue: '#334155' },
         { name: 'textLight', label: 'Text Light', type: 'text', defaultValue: '#64748b' },
+
+        // === Layout & Typography ===
         { name: 'radius', label: 'Border Radius (px)', type: 'text', defaultValue: '12' },
         { name: 'maxWidth', label: 'Max Width (px)', type: 'text', defaultValue: '1200' },
         { name: 'fontFamily', label: 'Font Family', type: 'select', options: ['system', 'inter', 'roboto', 'poppins', 'montserrat'] },
         { name: 'gradientDirection', label: 'Gradient Direction', type: 'select', options: ['135deg', '90deg', '180deg', '45deg'] },
+
+        // === Component Style ===
         { name: 'cardStyle', label: 'Card Style', type: 'select', options: ['rounded', 'sharp', 'glass'] },
         { name: 'buttonStyle', label: 'Button Style', type: 'select', options: ['gradient', 'solid', 'outline'] },
+
+        // === Behavior ===
         { name: 'enableAnimations', label: 'Enable Animations', type: 'boolean', defaultValue: true },
         { name: 'darkMode', label: 'Dark Mode', type: 'boolean', defaultValue: false },
-        { name: "featured", label: "Active Theme", type: "boolean", required: false, defaultValue: false }
       ]
     }
   ];
@@ -383,7 +400,7 @@ app.delete('/api/upload/:filename', (req, res) => {
 
 // GET active theme (featured = true)
 app.get('/api/theme', asyncHandler(async (req, res) => {
-  const theme = await Content.findOne({ contentType: 'theme', status: 'published', 'data.featured': true });
+  const theme = await Content.findOne({ contentType: 'theme', status: 'published', 'data.isActive': true });
 
   if (!theme) {
     // Fallback: return default theme
@@ -408,7 +425,11 @@ app.get('/api/theme', asyncHandler(async (req, res) => {
         cardStyle: 'rounded',
         buttonStyle: 'gradient',
         enableAnimations: true,
-        darkMode: false
+        darkMode: false,
+        success: '#22c55e',
+        warning: '#f59e0b',
+        danger: '#ef4444',
+        featured: '#fbbf24',
       }
     });
   }

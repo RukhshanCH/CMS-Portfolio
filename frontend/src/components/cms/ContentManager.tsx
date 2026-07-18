@@ -120,25 +120,29 @@ export default function ContentManager() {
       showAlert('success', editingId ? 'Updated!' : 'Created!');
       setIsModalOpen(false);
       loadItems();
+
+      // ── THEME-SPECIFIC LOGIC ──
+      if (typeName === 'theme' && formData.isActive) {
+        // 1. Unfeature all other themes
+        const themesRes = await fetch(`${API_BASE}/content/theme?status=all`);
+        const themes = await themesRes.json();
+        const others = themes.filter((t: ContentItem) => t._id !== editingId);
+
+        await Promise.all(
+          others.map((t: ContentItem) =>
+            fetch(`${API_BASE}/content/theme/${t._id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...t.data, isActive: false }), // ← was featured: false
+            })
+          )
+        );
+
+        // 2. Refresh the page so new theme CSS variables apply
+        window.location.reload();
+      }
     } catch {
       showAlert('error', 'Request failed');
-    } finally {
-      // In ContentManager.tsx, after successful save
-      if (typeName === 'theme' && formData.featured) {
-        // Unfeature all other themes via API
-        fetch(`${API_BASE}/content/theme?status=all`)
-          .then(r => r.json())
-          .then((themes: ContentItem[]) => {
-            const others = themes.filter(t => t._id !== editingId);
-            Promise.all(others.map(t =>
-              fetch(`${API_BASE}/content/theme/${t._id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...t.data, featured: false })
-              })
-            ));
-          });
-      }
     }
   };
 
