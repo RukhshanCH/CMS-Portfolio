@@ -197,6 +197,17 @@ export default function ContentTypeBuilder() {
     }
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        isModalOpen && setIsModalOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [setIsModalOpen, isModalOpen]);
+
   return (
     <div className="cms-content-types">
       <div className="cms-header">

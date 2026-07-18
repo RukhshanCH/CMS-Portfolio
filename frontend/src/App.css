@@ -842,6 +842,10 @@ a {
   color: var(--dark);
 }
 
+.dark-mode .modal-close:hover {
+  color: var(--text);
+}
+
 /* Modal Form */
 .modal-form {
   display: flex;

@@ -477,6 +477,18 @@ export default function ContentManager() {
     }
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        isModalOpen && setIsModalOpen(false);
+        previewItem && setPreviewItem(null)
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [setIsModalOpen, isModalOpen, setPreviewItem, previewItem]);
+
   if (error && !contentType) {
     return (
       <div className="cms-content-manager">
@@ -580,7 +592,6 @@ export default function ContentManager() {
                       <button
                         className="btn-edit-card"
                         onClick={() => setPreviewItem(item)}
-                        style={{ background: 'var(--accent-bg)', color: 'var(--secondary)' }}
                       >
                         👁️ Preview
                       </button>
