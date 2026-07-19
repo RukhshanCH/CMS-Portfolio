@@ -30,10 +30,10 @@ export default function AdminDashboard() {
     let drafts = 0;
     const allItems: ContentItem[] = [];
 
-    const types = ['project', 'blog-post', 'skill'];
-    for (const type of types) {
+    // Use contentTypes from CMS context instead of hardcoded array
+    for (const type of contentTypes) {
       try {
-        const items = await getContent(type);
+        const items = await getContent(type.name);
         total += items.length;
         published += items.filter((i) => i.status === 'published').length;
         drafts += items.filter((i) => i.status === 'draft').length;

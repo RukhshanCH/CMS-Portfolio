@@ -1011,6 +1011,10 @@ a {
   font-size: var(--font-size-4xl);
 }
 
+.dark-mode .gate-title {
+  color: var(--text);
+}
+
 .gate-input {
   width: 100%;
   padding: var(--space-3) var(--space-4);
@@ -1100,7 +1104,7 @@ a {
 .project-content h3 {
   font-size: var(--font-size-3xl);
   margin-bottom: var(--space-2);
-  color: var(--accent);
+  color: var(--text);
 }
 
 .project-content p {
@@ -1118,10 +1122,10 @@ a {
 
 .tag {
   padding: var(--space-1) var(--space-3);
-  background: var(--gradient-accent);
+  background: var(--gradient-primary);
   border-radius: var(--radius-pill);
   font-size: var(--font-size-sm);
-  color: var(--primary);
+  color: var(--light);
   font-weight: 600;
   border: 1px solid var(--accent-soft);
 }
@@ -1328,6 +1332,10 @@ a {
   color: var(--dark);
 }
 
+.dark-mode .skill-name {
+  color: var(--text);
+}
+
 .skill-level {
   color: var(--secondary);
   font-size: var(--font-size-md);
@@ -1464,12 +1472,35 @@ a {
   background: var(--gray-warm);
 }
 
+.dark-mode .form-group input,
+.dark-mode .form-group textarea {
+  color: var(--text);
+}
+
 .form-group input:focus,
 .form-group textarea:focus {
   outline: none;
   border-color: var(--accent);
   background: var(--light);
   box-shadow: var(--focus-ring);
+}
+
+.contact-detail {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.contact-detail:hover {
+  color: var(--primary);
+}
+
+.contact-detail svg {
+  color: var(--primary);
+  flex-shrink: 0;
 }
 
 /* === Footer === */
@@ -1696,6 +1727,10 @@ a {
   color: var(--light);
 }
 
+.dark-mode .btn-delete-small:hover {
+  color: var(--text);
+}
+
 /* === Form Label === */
 .form-label {
   display: block;
@@ -1703,6 +1738,10 @@ a {
   font-weight: 600;
   color: var(--dark);
   margin-bottom: var(--space-1);
+}
+
+.dark-mode .form-label {
+  color: var(--accent);
 }
 
 /* === Responsive === */

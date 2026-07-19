@@ -95,6 +95,7 @@ function AppContent() {
                 <Link to="/admin/content/about" className="cms-nav-link">👨‍💻 About</Link>
                 <Link to="/admin/content/project" className="cms-nav-link">🚀 Projects</Link>
                 <Link to="/admin/content/skill" className="cms-nav-link">⭐ Skills</Link>
+                <Link to="/admin/content/contact" className="cms-nav-link">📧 Contact</Link>
                 <Link to="/admin/content/theme" className="cms-nav-link">🎨 Theme</Link>
               </nav>
             </aside>

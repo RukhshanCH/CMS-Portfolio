@@ -147,6 +147,23 @@ async function seedDefaults() {
       ]
     },
     {
+      name: "contact",
+      label: "Contact",
+      icon: "📧",
+      fields: [
+        { name: "heading", label: "Heading", type: "text", required: true, defaultValue: "Get In Touch" },
+        { name: "subheading", label: "Subheading", type: "textarea", defaultValue: "Have a project in mind? Let's work together." },
+        { name: "email", label: "Email", type: "text", defaultValue: "alex@developer.com" },
+        { name: "phone", label: "Phone", type: "text" },
+        { name: "location", label: "Location", type: "text", defaultValue: "San Francisco, CA" },
+        { name: "github", label: "GitHub URL", type: "url" },
+        { name: "linkedin", label: "LinkedIn URL", type: "url" },
+        { name: "whatsapp", label: "Whatsapp Number", type: "text" },
+        { name: "whatsappMessage", label: "Whatsapp Message", type: "text", defaultValue: "Hello, I would like to work with you." },
+        { name: "formEnabled", label: "Enable Contact Form", type: "boolean", defaultValue: true }
+      ]
+    },
+    {
       name: 'theme',
       label: 'Theme',
       icon: '🎨',
