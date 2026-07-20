@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useCMS } from '../../context/CMSContext';
 import type { ContentField, ContentType } from '../../index';
 
+const API_BASE: string = (import.meta as any).env?.VITE_APP_API_URL;
+
 const FIELD_TYPES = [
   { value: 'text', label: 'Text' },
   { value: 'textarea', label: 'Text Area' },
@@ -163,8 +165,8 @@ export default function ContentTypeBuilder() {
 
     try {
       const url = editingId
-        ? `${(import.meta as any).env?.VITE_APP_API_URL}/api/content-types/${editingId}`
-        : `${(import.meta as any).env?.VITE_APP_API_URL}/api/content-types`;
+        ? `${API_BASE}/api/content-types/${editingId}`
+        : `${API_BASE}/api/content-types`;
       const method = editingId ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
@@ -188,7 +190,7 @@ export default function ContentTypeBuilder() {
     if (!window.confirm('Delete this content type? All associated content will also be deleted.')) return;
 
     try {
-      const res = await fetch(`${(import.meta as any).env?.VITE_APP_API_URL}/api/content-types/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/content-types/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
       showAlert('success', 'Content type deleted!');
       await refreshContentTypes();
