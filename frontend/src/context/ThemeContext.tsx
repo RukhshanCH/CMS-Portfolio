@@ -66,7 +66,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     const fetchTheme = async () => {
         try {
-            const res = await fetch('http://localhost:3001/api/theme');
+            const res = await fetch(`${(import.meta as any).env?.VITE_APP_API_URL}/api/theme`);
             const data = await res.json();
             setTheme({ ...defaultTheme, ...data.data });
         } catch {

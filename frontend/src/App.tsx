@@ -18,7 +18,6 @@ import Loader from './components/Loader';
 
 const ADMIN_PASSWORD: string = (import.meta as any).env?.VITE_ADMIN_PASSWORD || 'password';
 const API_BASE: string = (import.meta as any).env?.VITE_APP_API_URL + '/api/content';
-console.log("API_BASE", API_BASE);
 
 // ─── PASSWORD GATE ───
 function PasswordGate({ children }: { children: React.ReactNode }) {

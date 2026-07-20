@@ -36,7 +36,7 @@ export default function PageBuilder() {
   }, [setIsModalOpen, isModalOpen]);
 
   const loadPages = async () => {
-    const res = await fetch('http://localhost:3001/api/pages');
+    const res = await fetch(`${(import.meta as any).env?.VITE_APP_API_URL}/api/pages`);
     const data = await res.json();
     setPages(data);
   };
@@ -114,8 +114,8 @@ export default function PageBuilder() {
 
     try {
       const url = editingId
-        ? `http://localhost:3001/api/pages/${editingId}`
-        : 'http://localhost:3001/api/pages';
+        ? `${(import.meta as any).env?.VITE_APP_API_URL}/api/pages/${editingId}`
+        : `${(import.meta as any).env?.VITE_APP_API_URL}/api/pages`;
       const method = editingId ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
@@ -138,7 +138,7 @@ export default function PageBuilder() {
   const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this page?')) return;
     try {
-      await fetch(`http://localhost:3001/api/pages/${id}`, { method: 'DELETE' });
+      await fetch(`${(import.meta as any).env?.VITE_APP_API_URL}/api/pages/${id}`, { method: 'DELETE' });
       showAlert('success', 'Page deleted!');
       await loadPages();
     } catch {

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import type { ContentItem } from '..';
 
-const API_URL = 'http://localhost:3001/api/content/hero?status=published';
+const API_URL: string = `${(import.meta as any).env?.VITE_APP_API_URL}/api/content/hero?status=published`;
+
 const Navbar: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);

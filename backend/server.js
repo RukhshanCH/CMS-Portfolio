@@ -400,7 +400,7 @@ app.use('/uploads', express.static(uploadDir));
 app.post('/api/upload', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   res.json({
-    url: `http://localhost:3001/uploads/${req.file.filename}`,
+    url: `http://cms-portfolio-production-744c.up.railway.app/uploads/${req.file.filename}`,
     filename: req.file.filename,
     size: req.file.size,
   });

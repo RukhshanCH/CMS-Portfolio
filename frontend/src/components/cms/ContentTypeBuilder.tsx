@@ -163,8 +163,8 @@ export default function ContentTypeBuilder() {
 
     try {
       const url = editingId
-        ? `http://localhost:3001/api/content-types/${editingId}`
-        : 'http://localhost:3001/api/content-types';
+        ? `${(import.meta as any).env?.VITE_APP_API_URL}/api/content-types/${editingId}`
+        : `${(import.meta as any).env?.VITE_APP_API_URL}/api/content-types`;
       const method = editingId ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
@@ -188,7 +188,7 @@ export default function ContentTypeBuilder() {
     if (!window.confirm('Delete this content type? All associated content will also be deleted.')) return;
 
     try {
-      const res = await fetch(`http://localhost:3001/api/content-types/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${(import.meta as any).env?.VITE_APP_API_URL}/api/content-types/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
       showAlert('success', 'Content type deleted!');
       await refreshContentTypes();
