@@ -156,8 +156,10 @@ async function seedDefaults() {
         { name: "email", label: "Email", type: "text", defaultValue: "alex@developer.com" },
         { name: "phone", label: "Phone", type: "text" },
         { name: "location", label: "Location", type: "text", defaultValue: "San Francisco, CA" },
-        { name: "github", label: "GitHub URL", type: "url" },
         { name: "linkedin", label: "LinkedIn URL", type: "url" },
+        { name: "instagram", label: "Instagram URL", type: "url" },
+        { name: "facebook", label: "Facebook URL", type: "url" },
+        { name: "reddit", label: "Reddit URL", type: "url" },
         { name: "whatsapp", label: "Whatsapp Number", type: "text" },
         { name: "whatsappMessage", label: "Whatsapp Message", type: "text", defaultValue: "Hello, I would like to work with you." },
         { name: "formEnabled", label: "Enable Contact Form", type: "boolean", defaultValue: true }

@@ -33,7 +33,7 @@ const Navbar: React.FC = () => {
   return (
     <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
       <div className="nav-container">
-        <a href="#" className="nav-logo">Portfolio</a>
+        <a href="#" className="nav-logo">Welcome to my Portfolio</a>
 
         <button
           className="nav-toggle"

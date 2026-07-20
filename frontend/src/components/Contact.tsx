@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ContentItem } from '../index';
-import { FaEnvelope, FaLinkedin, FaGithub, FaPhone, FaMapMarkerAlt, FaWhatsapp } from 'react-icons/fa';
+import { FaEnvelope, FaLinkedin, FaPhone, FaMapMarkerAlt, FaWhatsapp, FaInstagram, FaFacebook, FaReddit } from 'react-icons/fa';
 
 interface ContactProps {
   data?: ContentItem | null;
@@ -22,15 +22,19 @@ export default function Contact({ data: contactProp }: ContactProps) {
   const email = d.email ? String(d.email) : undefined;
   const phone = d.phone ? String(d.phone) : undefined;
   const location = d.location ? String(d.location) : undefined;
-  const github = d.github ? String(d.github) : undefined;
   const linkedin = d.linkedin ? String(d.linkedin) : undefined;
+  const instagram = d.instagram ? String(d.instagram) : undefined;
+  const facebook = d.facebook ? String(d.facebook) : undefined;
+  const reddit = d.reddit ? String(d.reddit) : undefined;
   const whatsapp = d.whatsapp ? String(d.whatsapp) : undefined;
   const formEnabled = d.formEnabled !== false;
   const WHATSAPP_MSG = d.whatsappMessage ? String(d.whatsappMessage) : 'Hello!';
 
   const socials = [
-    { url: github, icon: <FaGithub size={20} />, label: 'GitHub', title: 'GitHub' },
     { url: linkedin, icon: <FaLinkedin size={20} />, label: 'LinkedIn', title: 'LinkedIn' },
+    { url: instagram, icon: <FaInstagram size={20} />, label: 'Instagram', title: 'Instagram' },
+    { url: facebook, icon: <FaFacebook size={20} />, label: 'facebook', title: 'facebook' },
+    { url: reddit, icon: <FaReddit size={20} />, label: 'reddit', title: 'reddit' },
     {
       url: whatsapp
         ? `https://wa.me/${whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(WHATSAPP_MSG)}`
