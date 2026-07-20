@@ -12,7 +12,7 @@ interface CMSContextType {
   bulkDelete: (typeName: string, ids: string[]) => Promise<void>;
 }
 
-const API_BASE: string = (import.meta as any).env?.VITE_BACKEND_URL || 'password' + '/api';
+const API_BASE: string = (import.meta as any).env?.VITE_APP_API_URL || 'password' + '/api';
 
 const CMSContext = createContext<CMSContextType | null>(null);
 
