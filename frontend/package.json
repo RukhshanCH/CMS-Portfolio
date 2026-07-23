@@ -12,6 +12,7 @@
     "both": "concurrently \"npm run dev\" \"npm run server\""
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.8",
     "concurrently": "^10.0.3",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

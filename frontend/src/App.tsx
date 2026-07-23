@@ -15,6 +15,7 @@ import PageBuilder from './components/cms/PageBuilder';
 import './App.css';
 import type { ContentItem } from '.';
 import Loader from './components/Loader';
+import { supabase } from './utils/supabase'
 
 const ADMIN_PASSWORD: string = (import.meta as any).env?.VITE_ADMIN_PASSWORD || 'password';
 const API_BASE: string = (import.meta as any).env?.VITE_APP_API_URL + '/api/content';
@@ -211,11 +212,42 @@ function AppInner() {
   );
 }
 
-// ─── ROOT APP ───
+interface Todo {
+  id: number;
+  name: string;
+}
+
 function App() {
+  const [todos, setTodos] = useState<Todo[]>([]);
+
+  useEffect(() => {
+    async function getTodos() {
+      const { data, error } = await supabase
+        .from("todos")
+        .select("*");
+
+      if (error) {
+        console.error("Error fetching todos:", error);
+        return;
+      }
+
+      if (data) {
+        setTodos(data);
+      }
+    }
+
+    getTodos();
+  }, []);
+
   return (
     <BrowserRouter>
       <ThemeProvider>
+        <ul>
+          {todos.map((todo) => (
+            <li key={todo.id}>{todo.name}</li>
+          ))}
+        </ul>
+
         <AppInner />
       </ThemeProvider>
     </BrowserRouter>
