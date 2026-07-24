@@ -1,287 +1,306 @@
-import { useState, useEffect } from 'react';
-import { useCMS } from '../../context/CMSContext';
-import type { ContentItem, CMSPage } from '../../index';
+// ============================================
+// components/cms/PageBuilder.tsx — Updated for Multi-Tenant
+// Manages site settings and navigation order
+// ============================================
 
-interface PageSection {
-  contentType: string;
-  contentId: string;
-  order: number;
-}
+import React, { useState, useEffect } from 'react';
+import { useAdmin } from '../../layouts/AdminLayout';
+import { updateSiteSettings } from '../../utils/supabase_multitenants';
+
+const AVAILABLE_SECTIONS = [
+  { id: 'hero', label: '🏠 Hero' },
+  { id: 'about', label: '👤 About' },
+  { id: 'skills', label: '⭐ Skills' },
+  { id: 'projects', label: '🚀 Projects' },
+  { id: 'contact', label: '📧 Contact' },
+];
 
 export default function PageBuilder() {
-  const { contentTypes, getContent } = useCMS();
-  const [pages, setPages] = useState<CMSPage[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [route, setRoute] = useState('');
-  const [title, setTitle] = useState('');
-  const [metaDescription, setMetaDescription] = useState('');
-  const [sections, setSections] = useState<PageSection[]>([]);
-  const [availableContent, setAvailableContent] = useState<Record<string, ContentItem[]>>({});
-  const [alert, setAlert] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { portfolioId, data, refreshData } = useAdmin();
+  const settings = data?.settings;
+
+  const [navOrder, setNavOrder] = useState<string[]>([]);
+  const [siteTitle, setSiteTitle] = useState('');
+  const [siteDescription, setSiteDescription] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    loadPages();
-  }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        isModalOpen && setIsModalOpen(false);
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [setIsModalOpen, isModalOpen]);
-
-  const loadPages = async () => {
-    const res = await fetch(`${(import.meta as any).env?.VITE_APP_API_URL}/api/pages`);
-    const data = await res.json();
-    setPages(data);
-  };
-
-  const showAlert = (type: 'success' | 'error', text: string) => {
-    setAlert({ type, text });
-    setTimeout(() => setAlert(null), 3500);
-  };
-
-  const resetForm = () => {
-    setRoute('');
-    setTitle('');
-    setMetaDescription('');
-    setSections([]);
-    setEditingId(null);
-  };
-
-  const openAdd = () => {
-    resetForm();
-    setIsModalOpen(true);
-  };
-
-  const openEdit = (page: CMSPage) => {
-    setEditingId(page._id);
-    setRoute(page.route);
-    setTitle(page.title);
-    setMetaDescription(page.metaDescription || '');
-    setSections(page.sections.map((s) => ({ ...s })));
-    setIsModalOpen(true);
-  };
-
-  const loadContentForType = async (contentType: string) => {
-    if (availableContent[contentType]) return;
-    try {
-      const items = await getContent(contentType);
-      setAvailableContent((prev) => ({ ...prev, [contentType]: items }));
-    } catch {
-      // type might not exist
+    if (settings) {
+      setNavOrder(settings.nav_order || ['hero', 'about', 'skills', 'projects', 'contact']);
+      setSiteTitle(settings.site_title || '');
+      setSiteDescription(settings.site_description || '');
     }
-  };
+  }, [settings]);
 
-  const addSection = () => {
-    setSections([...sections, { contentType: '', contentId: '', order: sections.length }]);
-  };
-
-  const updateSection = (index: number, key: keyof PageSection, value: string | number) => {
-    const updated = [...sections];
-    updated[index] = { ...updated[index], [key]: value };
-    if (key === 'contentType') {
-      updated[index].contentId = '';
-      loadContentForType(value as string);
+  function moveSection(index: number, direction: 'up' | 'down') {
+    const newOrder = [...navOrder];
+    if (direction === 'up' && index > 0) {
+      [newOrder[index], newOrder[index - 1]] = [newOrder[index - 1], newOrder[index]];
+    } else if (direction === 'down' && index < newOrder.length - 1) {
+      [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
     }
-    setSections(updated);
-  };
+    setNavOrder(newOrder);
+  }
 
-  const removeSection = (index: number) => {
-    setSections(sections.filter((_, i) => i !== index).map((s, i) => ({ ...s, order: i })));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!route.trim() || !title.trim()) {
-      showAlert('error', 'Route and title are required');
-      return;
+  function toggleSection(sectionId: string) {
+    if (navOrder.includes(sectionId)) {
+      setNavOrder(navOrder.filter(id => id !== sectionId));
+    } else {
+      setNavOrder([...navOrder, sectionId]);
     }
+  }
 
-    const payload = {
-      route: route.startsWith('/') ? route : `/${route}`,
-      title,
-      metaDescription,
-      sections: sections.filter((s) => s.contentType && s.contentId),
-      isActive: true,
-    };
-
-    try {
-      const url = editingId
-        ? `${(import.meta as any).env?.VITE_APP_API_URL}/api/pages/${editingId}`
-        : `${(import.meta as any).env?.VITE_APP_API_URL}/api/pages`;
-      const method = editingId ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) throw new Error('Failed to save');
-
-      showAlert('success', editingId ? 'Page updated!' : 'Page created!');
-      setIsModalOpen(false);
-      resetForm();
-      await loadPages();
-    } catch (err) {
-      showAlert('error', err instanceof Error ? err.message : 'Failed');
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Delete this page?')) return;
-    try {
-      await fetch(`${(import.meta as any).env?.VITE_APP_API_URL}/api/pages/${id}`, { method: 'DELETE' });
-      showAlert('success', 'Page deleted!');
-      await loadPages();
-    } catch {
-      showAlert('error', 'Failed to delete');
-    }
-  };
+  async function handleSave() {
+    if (!portfolioId || !settings?.id) return;
+    setSaving(true);
+    await updateSiteSettings(portfolioId, settings.id, {
+      site_title: siteTitle,
+      site_description: siteDescription,
+      nav_order: navOrder,
+    });
+    await refreshData();
+    setSaving(false);
+  }
 
   return (
-    <div className="cms-page-builder">
-      <div className="cms-header">
-        <h1>📄 Pages</h1>
-        <button className="btn-admin btn-add" onClick={openAdd}>+ Create Page</button>
-      </div>
+    <div>
+      <h1 style={styles.title}>📄 Page Builder</h1>
+      <p style={styles.subtitle}>Configure site settings and navigation order</p>
 
-      {alert && <div className={`alert alert-${alert.type}`}>{alert.text}</div>}
-
-      {pages.length === 0 ? (
-        <p className="empty-state">No pages yet. Create one!</p>
-      ) : (
-        <div className="pages-list">
-          {pages.map((page) => (
-            <div key={page._id} className="page-card">
-              <div className="page-info">
-                <h3>{page.title}</h3>
-                <code className="page-route">{page.route}</code>
-                <div className="page-sections-count">{page.sections.length} section(s)</div>
-              </div>
-              <div className="page-actions">
-                <a href={page.route} target="_blank" rel="noreferrer" className="btn-edit-card">
-                  View
-                </a>
-                <button className="btn-edit-card" onClick={() => openEdit(page)}>Edit</button>
-                <button className="btn-delete-small" onClick={() => handleDelete(page._id)}>Delete</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setIsModalOpen(false)}>
-          <div className="modal modal-large">
-            <div className="modal-header">
-              <h2>{editingId ? 'Edit' : 'Create'} Page</h2>
-              <button className="modal-close" onClick={() => setIsModalOpen(false)}>×</button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="modal-form">
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Route *</label>
-                  <input
-                    className="form-input"
-                    value={route}
-                    onChange={(e) => setRoute(e.target.value)}
-                    placeholder="e.g., /about or /portfolio"
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Page Title *</label>
-                  <input
-                    className="form-input"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g., About Me"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Meta Description</label>
-                <input
-                  className="form-input"
-                  value={metaDescription}
-                  onChange={(e) => setMetaDescription(e.target.value)}
-                  placeholder="SEO description"
-                />
-              </div>
-
-              <div className="fields-section">
-                <div className="fields-header">
-                  <h3>Sections</h3>
-                  <button type="button" className="btn-admin btn-add" onClick={addSection}>+ Add Section</button>
-                </div>
-
-                {sections.map((section, index) => (
-                  <div key={index} className="section-row">
-                    <select
-                      className="form-input"
-                      value={section.contentType}
-                      onChange={(e) => updateSection(index, 'contentType', e.target.value)}
-                    >
-                      <option value="">Select content type</option>
-                      {contentTypes.map((ct) => (
-                        <option key={ct._id} value={ct.name}>{ct.icon} {ct.label}</option>
-                      ))}
-                    </select>
-
-                    <select
-                      className="form-input"
-                      value={section.contentId}
-                      onChange={(e) => updateSection(index, 'contentId', e.target.value)}
-                      disabled={!section.contentType}
-                    >
-                      <option value="">Select content</option>
-                      {(availableContent[section.contentType] || []).map((item) => (
-                        <option key={item._id} value={item._id}>
-                          {String(item.data.title || item._id)}
-                        </option>
-                      ))}
-                    </select>
-
-                    <input
-                      className="form-input"
-                      type="number"
-                      value={section.order}
-                      onChange={(e) => updateSection(index, 'order', Number(e.target.value))}
-                      placeholder="Order"
-                      style={{ width: '80px' }}
-                    />
-
-                    <button type="button" className="btn-delete-small" onClick={() => removeSection(index)}>
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="modal-actions">
-                <button type="button" className="btn-admin btn-cancel" onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-admin btn-add">
-                  {editingId ? 'Update' : 'Create'}
-                </button>
-              </div>
-            </form>
+      {/* Site Settings */}
+      <div style={styles.section}>
+        <h2 style={styles.sectionTitle}>Site Settings</h2>
+        <div style={styles.formCard}>
+          <div style={styles.field}>
+            <label style={styles.label}>Site Title</label>
+            <input
+              value={siteTitle}
+              onChange={(e) => setSiteTitle(e.target.value)}
+              style={styles.input}
+              placeholder="My Portfolio"
+            />
+          </div>
+          <div style={styles.field}>
+            <label style={styles.label}>Site Description</label>
+            <textarea
+              value={siteDescription}
+              onChange={(e) => setSiteDescription(e.target.value)}
+              style={styles.textarea}
+              rows={3}
+              placeholder="Brief description for SEO..."
+            />
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Navigation Order */}
+      <div style={styles.section}>
+        <h2 style={styles.sectionTitle}>Navigation Order</h2>
+        <p style={styles.hint}>Toggle sections to show/hide them. Drag to reorder (use arrows).</p>
+
+        <div style={styles.navList}>
+          {AVAILABLE_SECTIONS.map((section) => {
+            const isEnabled = navOrder.includes(section.id);
+            const index = navOrder.indexOf(section.id);
+
+            return (
+              <div 
+                key={section.id} 
+                style={{
+                  ...styles.navItem,
+                  opacity: isEnabled ? 1 : 0.5,
+                  borderColor: isEnabled ? 'var(--color-primary, #3b82f6)' : 'var(--color-gray, #334155)',
+                }}
+              >
+                <div style={styles.navItemLeft}>
+                  <button
+                    onClick={() => toggleSection(section.id)}
+                    style={{
+                      ...styles.toggleBtn,
+                      background: isEnabled ? 'var(--color-success, #22c55e)' : 'var(--color-gray, #334155)',
+                    }}
+                  >
+                    {isEnabled ? '✓' : '○'}
+                  </button>
+                  <span style={styles.navLabel}>{section.label}</span>
+                </div>
+
+                {isEnabled && (
+                  <div style={styles.navControls}>
+                    <span style={styles.orderNum}>#{index + 1}</span>
+                    <button 
+                      onClick={() => moveSection(index, 'up')}
+                      disabled={index === 0}
+                      style={styles.moveBtn}
+                    >
+                      ↑
+                    </button>
+                    <button 
+                      onClick={() => moveSection(index, 'down')}
+                      disabled={index === navOrder.length - 1}
+                      style={styles.moveBtn}
+                    >
+                      ↓
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Save Button */}
+      <button 
+        onClick={handleSave} 
+        disabled={saving}
+        style={{
+          ...styles.saveBtn,
+          opacity: saving ? 0.7 : 1,
+        }}
+      >
+        {saving ? 'Saving...' : '💾 Save Changes'}
+      </button>
     </div>
   );
 }
+
+const styles: Record<string, React.CSSProperties> = {
+  title: {
+    fontSize: '24px',
+    fontWeight: 700,
+    margin: '0 0 8px 0',
+    color: 'var(--color-text, #e2e8f0)',
+  },
+  subtitle: {
+    fontSize: '14px',
+    color: 'var(--color-text-muted, #94a3b8)',
+    margin: '0 0 28px 0',
+  },
+  section: {
+    marginBottom: '28px',
+  },
+  sectionTitle: {
+    fontSize: '18px',
+    fontWeight: 600,
+    margin: '0 0 16px 0',
+    color: 'var(--color-text, #e2e8f0)',
+  },
+  formCard: {
+    padding: '20px',
+    background: 'var(--color-surface, #1e293b)',
+    borderRadius: '12px',
+    border: '1px solid var(--color-gray, #334155)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+  },
+  field: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+  },
+  label: {
+    fontSize: '13px',
+    fontWeight: 500,
+    color: 'var(--color-text, #e2e8f0)',
+  },
+  input: {
+    padding: '10px 12px',
+    borderRadius: '8px',
+    border: '1px solid var(--color-gray, #334155)',
+    background: 'var(--color-background, #0f172a)',
+    color: 'var(--color-text, #e2e8f0)',
+    fontSize: '14px',
+    outline: 'none',
+  },
+  textarea: {
+    padding: '10px 12px',
+    borderRadius: '8px',
+    border: '1px solid var(--color-gray, #334155)',
+    background: 'var(--color-background, #0f172a)',
+    color: 'var(--color-text, #e2e8f0)',
+    fontSize: '14px',
+    outline: 'none',
+    resize: 'vertical',
+    fontFamily: 'inherit',
+  },
+  hint: {
+    fontSize: '13px',
+    color: 'var(--color-text-muted, #94a3b8)',
+    margin: '-8px 0 12px 0',
+  },
+  navList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  navItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '14px 16px',
+    background: 'var(--color-surface, #1e293b)',
+    borderRadius: '10px',
+    border: '1px solid var(--color-gray, #334155)',
+    transition: 'all 0.15s',
+  },
+  navItemLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  toggleBtn: {
+    width: '28px',
+    height: '28px',
+    borderRadius: '6px',
+    border: 'none',
+    color: '#fff',
+    fontSize: '14px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navLabel: {
+    fontSize: '15px',
+    fontWeight: 500,
+    color: 'var(--color-text, #e2e8f0)',
+  },
+  navControls: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  orderNum: {
+    fontSize: '13px',
+    color: 'var(--color-text-muted, #94a3b8)',
+    fontWeight: 600,
+    minWidth: '30px',
+    textAlign: 'center',
+  },
+  moveBtn: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '6px',
+    border: '1px solid var(--color-gray, #334155)',
+    background: 'var(--color-background, #0f172a)',
+    color: 'var(--color-text, #e2e8f0)',
+    fontSize: '16px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveBtn: {
+    padding: '14px 28px',
+    borderRadius: '10px',
+    border: 'none',
+    background: 'var(--color-primary, #3b82f6)',
+    color: '#fff',
+    fontSize: '15px',
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+};

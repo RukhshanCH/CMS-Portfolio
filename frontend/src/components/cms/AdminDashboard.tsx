@@ -1,216 +1,212 @@
-import { useEffect, useState } from 'react';
+// ============================================
+// components/cms/AdminDashboard.tsx — Updated for Multi-Tenant
+// Uses useAdmin() for portfolio-scoped data
+// ============================================
+
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../../utils/supabase';
-
-// ─── TYPES ───
-
-interface TableStat {
-  name: string;
-  label: string;
-  icon: string;
-  color: string;
-  count: number;
-  activeCount: number;
-}
-
-interface RecentItem {
-  id: string;
-  title: string;
-  table: string;
-  tableLabel: string;
-  isActive: boolean;
-  updatedAt: string;
-}
-
-// ─── TABLE CONFIG ───
-
-const TABLES = [
-  { name: 'projects', label: 'Projects', icon: '🚀', color: '#3b82f6' },
-  { name: 'hero', label: 'Hero', icon: '📄', color: '#8b5cf6' },
-  { name: 'about', label: 'About', icon: '👨‍💻', color: '#22c55e' },
-  { name: 'skills', label: 'Skills', icon: '⭐', color: '#f59e0b' },
-  { name: 'contact', label: 'Contact', icon: '📧', color: '#ef4444' },
-  { name: 'themes', label: 'Themes', icon: '🎨', color: '#db2777' },
-];
-
-// ─── COMPONENT ───
+import { useAdmin } from '../../layouts/AdminLayout';
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<TableStat[]>([]);
-  const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { portfolio, data, members, invitations, portfolioId } = useAdmin();
 
-  useEffect(() => {
-    loadStats();
-  }, []);
-
-  const loadStats = async () => {
-    setLoading(true);
-
-    const tableStats: TableStat[] = [];
-    const allRecent: RecentItem[] = [];
-
-    for (const table of TABLES) {
-      try {
-        // Get total count
-        const { count: totalCount, error: countError } = await supabase
-          .from(table.name)
-          .select('*', { count: 'exact', head: true });
-
-        if (countError) throw countError;
-
-        // Get active count
-        const { count: activeCount, error: activeError } = await supabase
-          .from(table.name)
-          .select('*', { count: 'exact', head: true })
-          .eq('is_active', true);
-
-        if (activeError) throw activeError;
-
-        tableStats.push({
-          name: table.name,
-          label: table.label,
-          icon: table.icon,
-          color: table.color,
-          count: totalCount || 0,
-          activeCount: activeCount || 0,
-        });
-
-        // Get recent items (last 2 per table)
-        // Different tables have different title fields
-        const titleField = table.name === 'skills' ? 'name' : 
-                          table.name === 'themes' ? 'name' :
-                          table.name === 'contact' ? 'heading' :
-                          table.name === 'hero' ? 'title' :
-                          table.name === 'about' ? 'heading' : 'title';
-
-        const { data: recentData, error: recentError } = await supabase
-          .from(table.name)
-          .select(`id, ${titleField}, is_active, updated_at`)
-          .order('updated_at', { ascending: false })
-          .limit(2);
-
-        if (recentError) throw recentError;
-
-        if (recentData) {
-          recentData.forEach((item: Record<string, unknown>) => {
-            const title = String(
-              item.title || item.name || item.heading || item.slug || 'Untitled'
-            );
-            allRecent.push({
-              id: String(item.id),
-              title,
-              table: table.name,
-              tableLabel: table.label,
-              isActive: Boolean(item.is_active),
-              updatedAt: String(item.updated_at),
-            });
-          });
-        }
-      } catch (err) {
-        console.error(`Error loading ${table.name}:`, err);
-        tableStats.push({
-          name: table.name,
-          label: table.label,
-          icon: table.icon,
-          color: table.color,
-          count: 0,
-          activeCount: 0,
-        });
-      }
-    }
-
-    // Sort recent by updated_at descending
-    allRecent.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-
-    setStats(tableStats);
-    setRecentItems(allRecent.slice(0, 6));
-    setLoading(false);
-  };
-
-  const totalContent = stats.reduce((sum, s) => sum + s.count, 0);
-  const totalActive = stats.reduce((sum, s) => sum + s.activeCount, 0);
-
-  const statCards = [
-    { label: 'Tables', value: TABLES.length, icon: '🏗️', color: '#3b82f6' },
-    { label: 'Total Items', value: totalContent, icon: '📄', color: '#8b5cf6' },
-    { label: 'Active', value: totalActive, icon: '✅', color: '#22c55e' },
-    { label: 'Inactive', value: totalContent - totalActive, icon: '📝', color: '#f59e0b' },
+  const stats = [
+    { label: 'Projects', value: data?.projects?.length || 0, icon: '🚀', path: 'projects' },
+    { label: 'Skills', value: data?.skills?.length || 0, icon: '⭐', path: 'skills' },
+    { label: 'Team Members', value: members.length, icon: '👥', path: 'members' },
+    { label: 'Pending Invites', value: invitations.length, icon: '📨', path: 'members' },
   ];
 
   return (
-    <div className="cms-dashboard">
-      <h1 className="cms-page-title">📊 Dashboard</h1>
+    <div>
+      <h1 style={styles.title}>📊 Dashboard</h1>
+      <p style={styles.subtitle}>
+        Managing: <strong>{portfolio?.title}</strong> 
+        <span style={styles.slug}>/{portfolio?.slug}</span>
+      </p>
 
-      {loading ? (
-        <p className="loading-text">Loading stats...</p>
-      ) : (
-        <>
-          <div className="stats-grid">
-            {statCards.map((card) => (
-              <div key={card.label} className="stat-card" style={{ borderLeft: `4px solid ${card.color}` }}>
-                <div className="stat-icon">{card.icon}</div>
-                <div className="stat-info">
-                  <div className="stat-value">{card.value}</div>
-                  <div className="stat-label-cms">{card.label}</div>
-                </div>
-              </div>
-            ))}
+      {/* Stats Grid */}
+      <div style={styles.statsGrid}>
+        {stats.map((stat) => (
+          <Link key={stat.label} to={stat.path} style={styles.statCard}>
+            <span style={styles.statIcon}>{stat.icon}</span>
+            <span style={styles.statValue}>{stat.value}</span>
+            <span style={styles.statLabel}>{stat.label}</span>
+          </Link>
+        ))}
+      </div>
+
+      {/* Quick Actions */}
+      <div style={styles.section}>
+        <h2 style={styles.sectionTitle}>Quick Actions</h2>
+        <div style={styles.actionsGrid}>
+          <Link to="hero" style={styles.actionCard}>
+            <span style={styles.actionIcon}>🏠</span>
+            <span style={styles.actionText}>Edit Hero</span>
+          </Link>
+          <Link to="about" style={styles.actionCard}>
+            <span style={styles.actionIcon}>👤</span>
+            <span style={styles.actionText}>Edit About</span>
+          </Link>
+          <Link to="theme" style={styles.actionCard}>
+            <span style={styles.actionIcon}>🎨</span>
+            <span style={styles.actionText}>Edit Theme</span>
+          </Link>
+          <Link to="settings" style={styles.actionCard}>
+            <span style={styles.actionIcon}>⚙️</span>
+            <span style={styles.actionText}>Site Settings</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* Portfolio Status */}
+      <div style={styles.section}>
+        <h2 style={styles.sectionTitle}>Portfolio Status</h2>
+        <div style={styles.statusCard}>
+          <div style={styles.statusRow}>
+            <span style={styles.statusLabel}>Published</span>
+            <span style={{
+              ...styles.statusBadge,
+              background: portfolio?.is_published ? 'rgba(34,197,94,0.2)' : 'rgba(148,163,184,0.2)',
+              color: portfolio?.is_published ? '#22c55e' : '#94a3b8',
+            }}>
+              {portfolio?.is_published ? 'Yes' : 'No'}
+            </span>
           </div>
-
-          <div className="dashboard-sections">
-            {/* Content Types */}
-            <div className="dashboard-section">
-              <h2>🏗️ Content Tables</h2>
-              <div className="content-type-list">
-                {stats.map((table) => (
-                  <Link
-                    key={table.name}
-                    to={`/admin/content/${table.name === 'projects' ? 'project' : table.name === 'skills' ? 'skill' : table.name}`}
-                    className="content-type-card"
-                  >
-                    <span className="ct-icon">{table.icon}</span>
-                    <div className="ct-info">
-                      <div className="ct-name">{table.label}</div>
-                      <div className="ct-fields">
-                        {table.activeCount} active / {table.count} total
-                      </div>
-                    </div>
-                    <span className="ct-arrow">→</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            {/* Recent Activity */}
-            <div className="dashboard-section">
-              <h2>🕐 Recent Activity</h2>
-              {recentItems.length === 0 ? (
-                <p className="empty-state-small">No recent activity</p>
-              ) : (
-                <div className="recent-list">
-                  {recentItems.map((item, idx) => (
-                    <Link
-                      key={`${item.table}-${item.id}-${idx}`}
-                      to={`/admin/content/${item.table === 'projects' ? 'project' : item.table === 'skills' ? 'skill' : item.table}`}
-                      className="recent-item"
-                      style={{ textDecoration: 'none', color: 'inherit' }}
-                    >
-                      <span className={`status-dot ${item.isActive ? 'status-published' : 'status-draft'}`} />
-                      <div className="recent-info">
-                        <div className="recent-title">{item.title}</div>
-                        <div className="recent-meta">
-                          {item.tableLabel} • {new Date(item.updatedAt).toLocaleDateString()}
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
+          <div style={styles.statusRow}>
+            <span style={styles.statusLabel}>Public URL</span>
+            <a 
+              href={`/portfolio/${portfolio?.slug}`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              style={styles.statusLink}
+            >
+              /portfolio/{portfolio?.slug}
+            </a>
           </div>
-        </>
-      )}
+          <div style={styles.statusRow}>
+            <span style={styles.statusLabel}>Portfolio ID</span>
+            <span style={styles.statusValue}>{portfolioId}</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
+
+const styles: Record<string, React.CSSProperties> = {
+  title: {
+    fontSize: '28px',
+    fontWeight: 700,
+    margin: '0 0 8px 0',
+    color: 'var(--color-text, #e2e8f0)',
+  },
+  subtitle: {
+    fontSize: '15px',
+    color: 'var(--color-text-muted, #94a3b8)',
+    margin: '0 0 28px 0',
+  },
+  slug: {
+    color: 'var(--color-primary, #3b82f6)',
+    fontFamily: 'monospace',
+    fontSize: '13px',
+  },
+  statsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+    gap: '16px',
+    marginBottom: '32px',
+  },
+  statCard: {
+    padding: '20px',
+    background: 'var(--color-surface, #1e293b)',
+    borderRadius: '12px',
+    border: '1px solid var(--color-gray, #334155)',
+    textDecoration: 'none',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '8px',
+    transition: 'transform 0.15s',
+  },
+  statIcon: {
+    fontSize: '28px',
+  },
+  statValue: {
+    fontSize: '32px',
+    fontWeight: 700,
+    color: 'var(--color-text, #e2e8f0)',
+  },
+  statLabel: {
+    fontSize: '13px',
+    color: 'var(--color-text-muted, #94a3b8)',
+  },
+  section: {
+    marginBottom: '32px',
+  },
+  sectionTitle: {
+    fontSize: '18px',
+    fontWeight: 600,
+    margin: '0 0 16px 0',
+    color: 'var(--color-text, #e2e8f0)',
+  },
+  actionsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+    gap: '12px',
+  },
+  actionCard: {
+    padding: '20px',
+    background: 'var(--color-surface, #1e293b)',
+    borderRadius: '12px',
+    border: '1px solid var(--color-gray, #334155)',
+    textDecoration: 'none',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '10px',
+    transition: 'border-color 0.15s',
+  },
+  actionIcon: {
+    fontSize: '24px',
+  },
+  actionText: {
+    fontSize: '14px',
+    fontWeight: 500,
+    color: 'var(--color-text, #e2e8f0)',
+  },
+  statusCard: {
+    padding: '20px',
+    background: 'var(--color-surface, #1e293b)',
+    borderRadius: '12px',
+    border: '1px solid var(--color-gray, #334155)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+  },
+  statusRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statusLabel: {
+    fontSize: '14px',
+    color: 'var(--color-text-muted, #94a3b8)',
+  },
+  statusBadge: {
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: '13px',
+    fontWeight: 500,
+  },
+  statusLink: {
+    color: 'var(--color-primary, #3b82f6)',
+    textDecoration: 'none',
+    fontSize: '14px',
+  },
+  statusValue: {
+    fontSize: '13px',
+    color: 'var(--color-text, #e2e8f0)',
+    fontFamily: 'monospace',
+  },
+};

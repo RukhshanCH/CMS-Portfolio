@@ -141,6 +141,7 @@ async function seedDefaults() {
   const defaultThemes = [
     {
       name: 'Default',
+      slug: 'default',
       is_active: true,
       color_primary: '#3b82f6',
       color_secondary: '#8b5cf6',
@@ -162,6 +163,7 @@ async function seedDefaults() {
     },
     {
       name: 'Warm Sunset',
+      slug: 'warm-sunset',
       is_active: false,
       color_primary: '#f97316',
       color_secondary: '#db2777',
@@ -183,6 +185,7 @@ async function seedDefaults() {
     },
     {
       name: 'Forest Nature',
+      slug: 'forest-nature',
       is_active: false,
       color_primary: '#15803d',
       color_secondary: '#0d9488',
@@ -204,6 +207,7 @@ async function seedDefaults() {
     },
     {
       name: 'Cyberpunk Dark',
+      slug: 'cyberpunk-dark',
       is_active: false,
       color_primary: '#a855f7',
       color_secondary: '#06b6d4',
@@ -225,6 +229,7 @@ async function seedDefaults() {
     },
     {
       name: 'Midnight Elegant',
+      slug: 'midnight-elegant',
       is_active: false,
       color_primary: '#e2e8f0',
       color_secondary: '#94a3b8',
