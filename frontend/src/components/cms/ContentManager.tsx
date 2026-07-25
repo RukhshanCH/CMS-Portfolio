@@ -34,6 +34,7 @@ interface ContentField {
   label: string;
   type: string;
   required?: boolean;
+  defaultValue?: any;
 }
 
 interface ContentConfig {
@@ -83,13 +84,17 @@ const CONTENT_CONFIG: Record<string, ContentConfig> = {
     fields: [
       { name: 'greeting', label: 'Greeting', type: 'text' },
       { name: 'name', label: 'Name', type: 'text', required: true },
-      { name: 'headline', label: 'Headline', type: 'text' },
-      { name: 'subheadline', label: 'Subheadline', type: 'textarea' },
-      { name: 'description', label: 'Description', type: 'textarea' },
-      { name: 'cta_text', label: 'CTA Button Text', type: 'text' },
-      { name: 'cta_link', label: 'CTA Link', type: 'text' },
-      { name: 'image_url', label: 'Profile Image URL', type: 'text' },
-      { name: 'background_image_url', label: 'Background Image URL', type: 'text' },
+      { name: 'subtitle', label: 'Subtitle', type: 'textarea' },
+      { name: 'background_image', label: 'Background Image URL', type: 'text' },
+      {
+        name: 'buttons',
+        label: 'Buttons (JSON Array)',
+        type: 'textarea',
+        defaultValue: JSON.stringify([
+          { text: 'View Projects', link: '/projects', variant: 'primary' },
+          { text: 'Contact Me', link: '/contact', variant: 'outline' },
+        ], null, 2),
+      },
       { name: 'is_active', label: 'Active', type: 'checkbox' },
     ],
   },
@@ -287,7 +292,11 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
     setEditingId('new');
     const empty: Record<string, any> = {};
     config?.fields.forEach((f) => {
-      empty[f.name] = f.type === 'checkbox' ? false : f.type === 'number' ? 0 : '';
+      if (f.defaultValue !== undefined) {
+        empty[f.name] = f.defaultValue;
+      } else {
+        empty[f.name] = f.type === 'checkbox' ? false : f.type === 'number' ? 0 : '';
+      }
     });
     setFormData(empty);
     setSaveError(null);
@@ -410,10 +419,10 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
           field.name === 'font_family'
             ? ['system', 'inter', 'roboto', 'poppins', 'montserrat']
             : field.name === 'card_style'
-            ? ['rounded', 'sharp', 'glass']
-            : field.name === 'button_style'
-            ? ['gradient', 'solid', 'outline', 'glow']
-            : [];
+              ? ['rounded', 'sharp', 'glass']
+              : field.name === 'button_style'
+                ? ['gradient', 'solid', 'outline', 'glow']
+                : [];
         return (
           <select
             value={value || ''}

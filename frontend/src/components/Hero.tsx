@@ -68,7 +68,7 @@ export default function Hero({ data: heroProp }: HeroProps) {
   const d = normalizeHeroData(heroProp);
 
   const greeting = String(d?.greeting || 'Hello, I am');
-  const title = String(d?.title || 'Alex Developer');
+  const title = String(d?.name || 'Alex Developer');
   const subtitle = String(
     d?.subtitle || 'Full-stack developer crafting modern web experiences with React, Node.js, and TypeScript.'
   );

@@ -89,14 +89,10 @@ export interface Hero {
   is_active: boolean;
   greeting: string;
   name: string;
-  headline: string;
-  subheadline: string;
-  description: string;
-  cta_text: string;
-  cta_link: string;
-  image_url: string;
-  background_image_url: string;
-  social_links: { platform: string; url: string }[];
+  subtitle: string;
+  background_image: string | null;
+  buttons: { text: string; link: string; variant?: string }[];
+  updated_at?: string;
 }
 
 export interface About {
