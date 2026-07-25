@@ -1,6 +1,5 @@
 // ============================================
-// components/cms/AdminDashboard.tsx — Updated for Multi-Tenant
-// Uses useAdmin() for portfolio-scoped data
+// components/cms/AdminDashboard.tsx — Multi-Tenant Dashboard
 // ============================================
 
 import React from 'react';
@@ -10,19 +9,55 @@ import { useAdmin } from '../../layouts/AdminLayout';
 export default function AdminDashboard() {
   const { portfolio, data, members, invitations, portfolioId } = useAdmin();
 
+  // Guard: if context is still settling, show nothing (AdminLayout handles loading)
+  if (!portfolio) {
+    return (
+      <div style={{ padding: '24px', color: 'var(--color-text-muted, #94a3b8)' }}>
+        Portfolio data unavailable.
+      </div>
+    );
+  }
+
   const stats = [
-    { label: 'Projects', value: data?.projects?.length || 0, icon: '🚀', path: 'projects' },
-    { label: 'Skills', value: data?.skills?.length || 0, icon: '⭐', path: 'skills' },
-    { label: 'Team Members', value: members.length, icon: '👥', path: 'members' },
-    { label: 'Pending Invites', value: invitations.length, icon: '📨', path: 'members' },
+    {
+      label: 'Projects',
+      value: data?.projects?.length ?? 0,
+      icon: '🚀',
+      path: 'projects',
+    },
+    {
+      label: 'Skills',
+      value: data?.skills?.length ?? 0,
+      icon: '⭐',
+      path: 'skills',
+    },
+    {
+      label: 'Team Members',
+      value: members.length,
+      icon: '👥',
+      path: 'members',
+    },
+    {
+      label: 'Pending Invites',
+      value: invitations.length,
+      icon: '📨',
+      path: 'members',
+    },
+  ];
+
+  const quickActions = [
+    { path: 'hero', icon: '🏠', text: 'Edit Hero' },
+    { path: 'about', icon: '👤', text: 'Edit About' },
+    { path: 'theme', icon: '🎨', text: 'Edit Theme' },
+    { path: 'settings', icon: '⚙️', text: 'Site Settings' },
   ];
 
   return (
     <div>
       <h1 style={styles.title}>📊 Dashboard</h1>
       <p style={styles.subtitle}>
-        Managing: <strong>{portfolio?.title}</strong> 
-        <span style={styles.slug}>/{portfolio?.slug}</span>
+        Managing: <strong>{portfolio.title}</strong>
+        <span style={styles.slug}>/{portfolio.slug}</span>
       </p>
 
       {/* Stats Grid */}
@@ -40,22 +75,12 @@ export default function AdminDashboard() {
       <div style={styles.section}>
         <h2 style={styles.sectionTitle}>Quick Actions</h2>
         <div style={styles.actionsGrid}>
-          <Link to="hero" style={styles.actionCard}>
-            <span style={styles.actionIcon}>🏠</span>
-            <span style={styles.actionText}>Edit Hero</span>
-          </Link>
-          <Link to="about" style={styles.actionCard}>
-            <span style={styles.actionIcon}>👤</span>
-            <span style={styles.actionText}>Edit About</span>
-          </Link>
-          <Link to="theme" style={styles.actionCard}>
-            <span style={styles.actionIcon}>🎨</span>
-            <span style={styles.actionText}>Edit Theme</span>
-          </Link>
-          <Link to="settings" style={styles.actionCard}>
-            <span style={styles.actionIcon}>⚙️</span>
-            <span style={styles.actionText}>Site Settings</span>
-          </Link>
+          {quickActions.map((action) => (
+            <Link key={action.path} to={action.path} style={styles.actionCard}>
+              <span style={styles.actionIcon}>{action.icon}</span>
+              <span style={styles.actionText}>{action.text}</span>
+            </Link>
+          ))}
         </div>
       </div>
 
@@ -65,23 +90,27 @@ export default function AdminDashboard() {
         <div style={styles.statusCard}>
           <div style={styles.statusRow}>
             <span style={styles.statusLabel}>Published</span>
-            <span style={{
-              ...styles.statusBadge,
-              background: portfolio?.is_published ? 'rgba(34,197,94,0.2)' : 'rgba(148,163,184,0.2)',
-              color: portfolio?.is_published ? '#22c55e' : '#94a3b8',
-            }}>
-              {portfolio?.is_published ? 'Yes' : 'No'}
+            <span
+              style={{
+                ...styles.statusBadge,
+                background: portfolio.is_published
+                  ? 'rgba(34,197,94,0.2)'
+                  : 'rgba(148,163,184,0.2)',
+                color: portfolio.is_published ? '#22c55e' : '#94a3b8',
+              }}
+            >
+              {portfolio.is_published ? 'Yes' : 'No'}
             </span>
           </div>
           <div style={styles.statusRow}>
             <span style={styles.statusLabel}>Public URL</span>
-            <a 
-              href={`/portfolio/${portfolio?.slug}`} 
-              target="_blank" 
+            <a
+              href={`/portfolio/${portfolio.slug}`}
+              target="_blank"
               rel="noopener noreferrer"
               style={styles.statusLink}
             >
-              /portfolio/{portfolio?.slug}
+              /portfolio/{portfolio.slug}
             </a>
           </div>
           <div style={styles.statusRow}>
@@ -127,7 +156,7 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: '8px',
-    transition: 'transform 0.15s',
+    transition: 'transform 0.15s, border-color 0.15s',
   },
   statIcon: {
     fontSize: '28px',

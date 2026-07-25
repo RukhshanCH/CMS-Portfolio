@@ -1,15 +1,14 @@
 // ============================================
-// components/cms/ContentManager.tsx — Updated for Multi-Tenant
+// components/cms/ContentManager.tsx — Multi-Tenant Content Manager
 // Generic content manager that works with any content type
-// Uses useAdmin() for portfolioId and data
 // ============================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAdmin } from '../../layouts/AdminLayout';
-import { 
-  getProjects, 
-  getSkills, 
+import {
+  getProjects,
+  getSkills,
   getContact,
   getHero,
   getAbout,
@@ -28,16 +27,28 @@ import {
   deleteSkill,
 } from '../../utils/supabase';
 
-// Content type configurations
-const CONTENT_CONFIG: Record<string, {
+// ─── Types ───
+
+interface ContentField {
+  name: string;
+  label: string;
+  type: string;
+  required?: boolean;
+}
+
+interface ContentConfig {
   title: string;
   table: string;
   getData: (portfolioId: string) => Promise<any>;
   updateData: (portfolioId: string, id: string, data: any) => Promise<boolean>;
   createData?: (portfolioId: string, data: any) => Promise<any>;
   deleteData?: (portfolioId: string, id: string) => Promise<boolean>;
-  fields: { name: string; label: string; type: string; required?: boolean }[];
-}> = {
+  fields: ContentField[];
+}
+
+// ─── Content Type Configurations ───
+
+const CONTENT_CONFIG: Record<string, ContentConfig> = {
   theme: {
     title: 'Themes',
     table: 'themes',
@@ -164,8 +175,15 @@ const CONTENT_CONFIG: Record<string, {
   },
 };
 
-export default function ContentManager() {
-  const { typeName } = useParams<{ typeName: string }>();
+// ─── Component ───
+
+interface ContentManagerProps {
+  defaultTypeName?: string;
+}
+
+export default function ContentManager({ defaultTypeName }: ContentManagerProps) {
+  const { typeName: paramTypeName } = useParams<{ typeName: string }>();
+  const typeName = defaultTypeName || paramTypeName;
   const { portfolioId, refreshData } = useAdmin();
 
   const config = typeName ? CONTENT_CONFIG[typeName] : null;
@@ -175,78 +193,161 @@ export default function ContentManager() {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
+    if (!config || !portfolioId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await config.getData(portfolioId);
+      setItems(Array.isArray(data) ? data : data ? [data] : []);
+    } catch (err) {
+      console.error('Failed to load data:', err);
+      setError('Failed to load content.');
+    } finally {
+      setLoading(false);
+    }
+  }, [config, portfolioId]);
 
   useEffect(() => {
     if (config && portfolioId) {
       loadData();
+    } else if (!typeName) {
+      setLoading(false);
     }
-  }, [typeName, portfolioId]);
+  }, [typeName, portfolioId, config, loadData]);
 
-  async function loadData() {
-    if (!config || !portfolioId) return;
-    setLoading(true);
-    const data = await config.getData(portfolioId);
-    setItems(Array.isArray(data) ? data : data ? [data] : []);
-    setLoading(false);
+  function validateForm(): string | null {
+    if (!config) return 'Unknown content type.';
+    const missing = config.fields.filter((f) => {
+      if (!f.required) return false;
+      const val = formData[f.name];
+      return val === undefined || val === null || val === '';
+    });
+    if (missing.length > 0) {
+      return `Please fill in required fields: ${missing.map((f) => f.label).join(', ')}`;
+    }
+    return null;
+  }
+
+  function processFormData(raw: Record<string, any>): Record<string, any> {
+    const processed = { ...raw };
+
+    // Type-specific transformations
+    switch (typeName) {
+      case 'project':
+        if (typeof processed.tech_stack === 'string') {
+          processed.tech_stack = processed.tech_stack
+            .split(',')
+            .map((s: string) => s.trim())
+            .filter(Boolean);
+        }
+        break;
+      case 'settings':
+        if (typeof processed.nav_order === 'string' && processed.nav_order.trim()) {
+          try {
+            processed.nav_order = JSON.parse(processed.nav_order);
+          } catch {
+            // Leave as string if invalid JSON; DB or API should reject if strict
+          }
+        }
+        break;
+      case 'theme':
+        if (processed.border_radius !== undefined && processed.border_radius !== '') {
+          processed.border_radius = Number(processed.border_radius);
+        }
+        if (processed.max_width !== undefined && processed.max_width !== '') {
+          processed.max_width = Number(processed.max_width);
+        }
+        break;
+      case 'skill':
+        if (processed.proficiency !== undefined && processed.proficiency !== '') {
+          processed.proficiency = Number(processed.proficiency);
+        }
+        if (processed.display_order !== undefined && processed.display_order !== '') {
+          processed.display_order = Number(processed.display_order);
+        }
+        break;
+      default:
+        break;
+    }
+
+    return processed;
   }
 
   function handleEdit(item: any) {
     setEditingId(item.id);
     setFormData({ ...item });
+    setSaveError(null);
   }
 
   function handleNew() {
     setEditingId('new');
     const empty: Record<string, any> = {};
-    config?.fields.forEach(f => {
+    config?.fields.forEach((f) => {
       empty[f.name] = f.type === 'checkbox' ? false : f.type === 'number' ? 0 : '';
     });
     setFormData(empty);
+    setSaveError(null);
   }
 
   async function handleSave() {
     if (!config || !portfolioId) return;
+
+    const validationError = validateForm();
+    if (validationError) {
+      setSaveError(validationError);
+      return;
+    }
+
     setSaving(true);
+    setSaveError(null);
 
-    // Process form data
-    const processed = { ...formData };
-    if (processed.tech_stack && typeof processed.tech_stack === 'string') {
-      processed.tech_stack = processed.tech_stack.split(',').map((s: string) => s.trim()).filter(Boolean);
-    }
-    if (processed.nav_order && typeof processed.nav_order === 'string') {
-      try { processed.nav_order = JSON.parse(processed.nav_order); } catch {}
-    }
-    if (processed.border_radius) processed.border_radius = String(processed.border_radius);
-    if (processed.max_width) processed.max_width = String(processed.max_width);
-    if (processed.proficiency) processed.proficiency = Number(processed.proficiency);
-    if (processed.display_order) processed.display_order = Number(processed.display_order);
+    try {
+      const processed = processFormData(formData);
 
-    if (editingId === 'new' && config.createData) {
-      await config.createData(portfolioId, processed);
-    } else if (editingId) {
-      await config.updateData(portfolioId, editingId, processed);
-    }
+      if (editingId === 'new' && config.createData) {
+        await config.createData(portfolioId, processed);
+      } else if (editingId) {
+        await config.updateData(portfolioId, editingId, processed);
+      }
 
-    await loadData();
-    await refreshData();
-    setEditingId(null);
-    setFormData({});
-    setSaving(false);
+      await loadData();
+      await refreshData();
+      setEditingId(null);
+      setFormData({});
+    } catch (err: any) {
+      console.error('Save failed:', err);
+      setSaveError(err?.message || 'Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleDelete(id: string) {
     if (!config?.deleteData || !portfolioId) return;
-    if (!confirm('Are you sure you want to delete this item?')) return;
-    await config.deleteData(portfolioId, id);
-    await loadData();
-    await refreshData();
+
+    // Replace native confirm with a custom modal in production
+    const confirmed = window.confirm('Are you sure you want to delete this item?');
+    if (!confirmed) return;
+
+    try {
+      await config.deleteData(portfolioId, id);
+      await loadData();
+      await refreshData();
+    } catch (err: any) {
+      console.error('Delete failed:', err);
+      setError(err?.message || 'Failed to delete item.');
+    }
   }
 
   function handleChange(field: string, value: any) {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   }
 
-  function renderField(field: typeof CONTENT_CONFIG[string]['fields'][0]) {
+  function renderField(field: ContentField) {
     const value = formData[field.name];
 
     switch (field.type) {
@@ -299,30 +400,34 @@ export default function ContentManager() {
         return (
           <input
             type="number"
-            value={value || 0}
+            value={value ?? 0}
             onChange={(e) => handleChange(field.name, e.target.value)}
             style={styles.input}
           />
         );
-      case 'select':
-        const options = field.name === 'font_family' 
-          ? ['system', 'inter', 'roboto', 'poppins', 'montserrat']
-          : field.name === 'card_style'
-          ? ['rounded', 'sharp', 'glass']
-          : field.name === 'button_style'
-          ? ['gradient', 'solid', 'outline', 'glow']
-          : [];
+      case 'select': {
+        const options =
+          field.name === 'font_family'
+            ? ['system', 'inter', 'roboto', 'poppins', 'montserrat']
+            : field.name === 'card_style'
+            ? ['rounded', 'sharp', 'glass']
+            : field.name === 'button_style'
+            ? ['gradient', 'solid', 'outline', 'glow']
+            : [];
         return (
           <select
             value={value || ''}
             onChange={(e) => handleChange(field.name, e.target.value)}
             style={styles.select}
           >
-            {options.map(opt => (
-              <option key={opt} value={opt}>{opt}</option>
+            {options.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
             ))}
           </select>
         );
+      }
       default:
         return (
           <input
@@ -337,36 +442,55 @@ export default function ContentManager() {
 
   if (!config) {
     return (
-      <div>
-        <h2>Unknown Content Type</h2>
-        <p>The content type "{typeName}" is not configured.</p>
+      <div style={{ padding: '24px' }}>
+        <h2 style={{ color: 'var(--color-text, #e2e8f0)' }}>Unknown Content Type</h2>
+        <p style={{ color: 'var(--color-text-muted, #94a3b8)' }}>
+          The content type "{typeName}" is not configured.
+        </p>
       </div>
     );
   }
 
   if (loading) {
-    return <p style={{ color: 'var(--color-text-muted)' }}>Loading...</p>;
+    return (
+      <p style={{ color: 'var(--color-text-muted, #94a3b8)', padding: '24px' }}>
+        Loading...
+      </p>
+    );
   }
 
   return (
-    <div>
+    <div style={{ padding: '24px' }}>
       <div style={styles.header}>
         <h1 style={styles.title}>{config.title}</h1>
         {config.createData && (
           <button onClick={handleNew} style={styles.newButton}>
-            + New {config.title.slice(0, -1)}
+            + New {config.title.replace(/s$/, '')}
           </button>
         )}
       </div>
+
+      {/* Error Banner */}
+      {error && (
+        <div style={styles.errorBanner}>
+          {error}
+          <button onClick={() => setError(null)} style={styles.errorClose}>
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Edit Form */}
       {editingId && (
         <div style={styles.formCard}>
           <h3 style={styles.formTitle}>
-            {editingId === 'new' ? `Create New ${config.title.slice(0, -1)}` : 'Edit'}
+            {editingId === 'new' ? `Create New ${config.title.replace(/s$/, '')}` : 'Edit'}
           </h3>
+
+          {saveError && <div style={styles.saveError}>{saveError}</div>}
+
           <div style={styles.formGrid}>
-            {config.fields.map(field => (
+            {config.fields.map((field) => (
               <div key={field.name} style={styles.fieldGroup}>
                 <label style={styles.fieldLabel}>
                   {field.label}
@@ -377,7 +501,14 @@ export default function ContentManager() {
             ))}
           </div>
           <div style={styles.formActions}>
-            <button onClick={() => setEditingId(null)} style={styles.cancelBtn}>
+            <button
+              onClick={() => {
+                setEditingId(null);
+                setFormData({});
+                setSaveError(null);
+              }}
+              style={styles.cancelBtn}
+            >
               Cancel
             </button>
             <button onClick={handleSave} disabled={saving} style={styles.saveBtn}>
@@ -390,14 +521,18 @@ export default function ContentManager() {
       {/* Items List */}
       <div style={styles.list}>
         {items.length === 0 ? (
-          <p style={styles.empty}>No items yet. Click "New" to create one.</p>
+          <p style={styles.empty}>
+            No items yet. Click "New" to create one.
+          </p>
         ) : (
           items.map((item) => (
             <div key={item.id} style={styles.itemCard}>
               <div style={styles.itemInfo}>
                 <h4 style={styles.itemTitle}>
                   {item.name || item.title || item.site_title || 'Untitled'}
-                  {item.is_active === false && <span style={styles.inactiveBadge}>Inactive</span>}
+                  {item.is_active === false && (
+                    <span style={styles.inactiveBadge}>Inactive</span>
+                  )}
                   {item.is_featured && <span style={styles.featuredBadge}>Featured</span>}
                 </h4>
                 {item.description && (
@@ -422,6 +557,8 @@ export default function ContentManager() {
   );
 }
 
+// ─── Styles ───
+
 const styles: Record<string, React.CSSProperties> = {
   header: {
     display: 'flex',
@@ -444,6 +581,34 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '14px',
     fontWeight: 600,
     cursor: 'pointer',
+  },
+  errorBanner: {
+    padding: '12px 16px',
+    background: 'var(--danger-bg, rgba(239,68,68,0.1))',
+    border: '1px solid var(--danger-border, rgba(239,68,68,0.3))',
+    borderRadius: '8px',
+    color: 'var(--danger-text, #ef4444)',
+    marginBottom: '16px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  errorClose: {
+    background: 'transparent',
+    border: 'none',
+    color: 'inherit',
+    fontSize: '18px',
+    cursor: 'pointer',
+    lineHeight: 1,
+  },
+  saveError: {
+    padding: '10px 14px',
+    background: 'var(--danger-bg, rgba(239,68,68,0.1))',
+    border: '1px solid var(--danger-border, rgba(239,68,68,0.3))',
+    borderRadius: '8px',
+    color: 'var(--danger-text, #ef4444)',
+    marginBottom: '16px',
+    fontSize: '14px',
   },
   formCard: {
     padding: '24px',
