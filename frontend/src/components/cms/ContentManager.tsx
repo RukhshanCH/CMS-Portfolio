@@ -35,6 +35,7 @@ interface ContentField {
   type: string;
   required?: boolean;
   defaultValue?: any;
+  options?: { label: string; value: string }[];
 }
 
 interface ContentConfig {
@@ -104,11 +105,10 @@ const CONTENT_CONFIG: Record<string, ContentConfig> = {
     getData: getAbout,
     updateData: updateAbout,
     fields: [
-      { name: 'title', label: 'Title', type: 'text', required: true },
-      { name: 'content', label: 'Content', type: 'richtext' },
-      { name: 'short_bio', label: 'Short Bio', type: 'textarea' },
-      { name: 'image_url', label: 'Image URL', type: 'text' },
-      { name: 'resume_url', label: 'Resume URL', type: 'text' },
+      { name: 'heading', label: 'Heading', type: 'text', required: true },
+      { name: 'bio', label: 'Bio (separate paragraphs with blank lines)', type: 'textarea' },
+      { name: 'image_url', label: 'Profile Image URL', type: 'text' },
+      { name: 'stats', label: 'Stats (JSON Array)', type: 'textarea' },
       { name: 'is_active', label: 'Active', type: 'checkbox' },
     ],
   },
@@ -122,13 +122,32 @@ const CONTENT_CONFIG: Record<string, ContentConfig> = {
     fields: [
       { name: 'title', label: 'Title', type: 'text', required: true },
       { name: 'slug', label: 'Slug', type: 'text' },
-      { name: 'description', label: 'Description', type: 'textarea' },
+      { name: 'category', label: 'Category', type: 'text' },
+      { name: 'description', label: 'Short Description', type: 'textarea' },
       { name: 'long_description', label: 'Long Description', type: 'richtext' },
-      { name: 'thumbnail_url', label: 'Thumbnail URL', type: 'text' },
+      { name: 'technologies', label: 'Technologies (comma separated)', type: 'text' },
+      { name: 'featured', label: 'Featured', type: 'checkbox' },
+      { name: 'images', label: 'Image Gallery (JSON Array)', type: 'textarea' },
+      { name: 'image_url', label: 'Primary Image URL', type: 'text' },
       { name: 'live_url', label: 'Live URL', type: 'text' },
-      { name: 'repo_url', label: 'Repository URL', type: 'text' },
-      { name: 'tech_stack', label: 'Tech Stack (comma separated)', type: 'text' },
-      { name: 'is_featured', label: 'Featured', type: 'checkbox' },
+      { name: 'github_url', label: 'GitHub URL', type: 'text' },
+      { name: 'insta_url', label: 'Instagram URL', type: 'text' },
+      { name: 'fb_url', label: 'Facebook URL', type: 'text' },
+      { name: 'behance_url', label: 'Behance URL', type: 'text' },
+      { name: 'linkedin_url', label: 'LinkedIn URL', type: 'text' },
+      { name: 'reddit_url', label: 'Reddit URL', type: 'text' },
+      {
+        name: 'status',
+        label: 'Status',
+        type: 'select',
+        options: [
+          { label: 'In Progress', value: 'in_progress' },
+          { label: 'Completed', value: 'completed' },
+          { label: 'Archived', value: 'archived' },
+          { label: 'Planned', value: 'planned' },
+        ],
+      },
+      { name: 'display_order', label: 'Display Order', type: 'number' },
       { name: 'is_active', label: 'Active', type: 'checkbox' },
     ],
   },
@@ -238,18 +257,60 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
   }
 
   function processFormData(raw: Record<string, any>): Record<string, any> {
-    const processed = { ...raw };
+    if (!config) return raw;
+
+    // Build a clean payload from config.fields ONLY
+    const processed: Record<string, any> = {};
+
+    config.fields.forEach((field) => {
+      let val = raw[field.name];
+
+      if (field.type === 'checkbox') {
+        // Force real boolean — never "", undefined, or null
+        processed[field.name] = !!val;
+      } else if (field.type === 'number') {
+        // Empty number inputs become null so DB defaults work
+        processed[field.name] =
+          val === '' || val === undefined || val === null ? null : Number(val);
+      } else if (field.type === 'textarea' || field.type === 'richtext') {
+        processed[field.name] = val === '' ? null : val;
+      } else {
+        // text, color, select, etc.
+        processed[field.name] = val === '' ? null : val;
+      }
+    });
 
     // Type-specific transformations
     switch (typeName) {
+      case 'about':
+        if (typeof processed.stats === 'string') {
+          try {
+            processed.stats = JSON.parse(processed.stats);
+          } catch {
+            // Invalid JSON — Supabase will reject it
+          }
+        }
+        break;
+
       case 'project':
-        if (typeof processed.tech_stack === 'string') {
-          processed.tech_stack = processed.tech_stack
+        if (typeof processed.technologies === 'string') {
+          processed.technologies = processed.technologies
             .split(',')
             .map((s: string) => s.trim())
             .filter(Boolean);
         }
+        if (typeof processed.images === 'string') {
+          try {
+            processed.images = JSON.parse(processed.images);
+          } catch {
+            // Invalid JSON — Supabase will reject it
+          }
+        }
+        if (processed.display_order !== undefined && processed.display_order !== '') {
+          processed.display_order = Number(processed.display_order);
+        }
         break;
+
       case 'settings':
         if (typeof processed.nav_order === 'string' && processed.nav_order.trim()) {
           try {
@@ -259,6 +320,7 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
           }
         }
         break;
+
       case 'theme':
         if (processed.border_radius !== undefined && processed.border_radius !== '') {
           processed.border_radius = Number(processed.border_radius);
@@ -267,6 +329,7 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
           processed.max_width = Number(processed.max_width);
         }
         break;
+
       case 'skill':
         if (processed.proficiency !== undefined && processed.proficiency !== '') {
           processed.proficiency = Number(processed.proficiency);
@@ -275,6 +338,7 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
           processed.display_order = Number(processed.display_order);
         }
         break;
+
       default:
         break;
     }
@@ -283,8 +347,18 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
   }
 
   function handleEdit(item: any) {
+    const editable: Record<string, any> = { ...item };
+
+    // Stringify arrays/objects so textareas display valid JSON instead of [object Object]
+    Object.keys(editable).forEach((key) => {
+      const val = editable[key];
+      if (Array.isArray(val) || (val !== null && typeof val === 'object' && !(val instanceof Date))) {
+        editable[key] = JSON.stringify(val, null, 2);
+      }
+    });
+
     setEditingId(item.id);
-    setFormData({ ...item });
+    setFormData(editable);
     setSaveError(null);
   }
 
@@ -294,8 +368,21 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
     config?.fields.forEach((f) => {
       if (f.defaultValue !== undefined) {
         empty[f.name] = f.defaultValue;
+      } else if (f.type === 'checkbox' ? false : f.type === 'number' ? 0 : '') {
+        empty[f.name] = false;
+      } else if (f.type === 'number') {
+        empty[f.name] = null;
+      } else if (
+        f.name === 'buttons' ||
+        f.name === 'stats' ||
+        f.name === 'images' ||
+        f.name === 'nav_order' ||
+        f.name === 'social_links'
+      ) {
+        // JSON fields: start with a valid empty array string
+        empty[f.name] = '[]';
       } else {
-        empty[f.name] = f.type === 'checkbox' ? false : f.type === 'number' ? 0 : '';
+        empty[f.name] = '';
       }
     });
     setFormData(empty);
@@ -416,24 +503,33 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
         );
       case 'select': {
         const options =
-          field.name === 'font_family'
+          field.options ??
+          (field.name === 'font_family'
             ? ['system', 'inter', 'roboto', 'poppins', 'montserrat']
             : field.name === 'card_style'
               ? ['rounded', 'sharp', 'glass']
               : field.name === 'button_style'
                 ? ['gradient', 'solid', 'outline', 'glow']
-                : [];
+                : []);
+
         return (
           <select
             value={value || ''}
             onChange={(e) => handleChange(field.name, e.target.value)}
             style={styles.select}
           >
-            {options.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
+            <option value="" disabled>
+              — Select {field.label} —
+            </option>
+            {options.map((opt) => {
+              const label = typeof opt === 'string' ? opt : opt.label;
+              const val = typeof opt === 'string' ? opt : opt.value;
+              return (
+                <option key={val} value={val}>
+                  {label}
+                </option>
+              );
+            })}
           </select>
         );
       }

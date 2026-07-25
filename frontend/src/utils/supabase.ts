@@ -99,12 +99,11 @@ export interface About {
   id: string;
   portfolio_id: string;
   is_active: boolean;
-  title: string;
-  content: string;
-  short_bio: string;
-  image_url: string;
-  resume_url: string;
-  details: { label: string; value: string }[];
+  heading: string;
+  bio: string;
+  image_url: string | null;
+  stats: { label: string; value: string }[];
+  updated_at?: string;
 }
 
 export interface Skill {
@@ -123,20 +122,26 @@ export interface Project {
   id: string;
   portfolio_id: string;
   is_active: boolean;
-  is_featured: boolean;
+  featured: boolean;           // was is_featured
   title: string;
   slug: string;
+  category: string;
   description: string;
   long_description: string;
-  thumbnail_url: string;
-  gallery: string[];
-  live_url: string;
-  repo_url: string;
-  tech_stack: string[];
-  start_date: string;
-  end_date: string;
+  technologies: string[];        // was tech_stack
+  tags?: string[];              // legacy fallback only
+  images: string[];             // was gallery
+  image_url: string | null;     // was thumbnail_url
+  live_url: string | null;
+  github_url: string | null;    // was repo_url
+  insta_url: string | null;
+  fb_url: string | null;
+  behance_url: string | null;
+  linkedin_url: string | null;
+  reddit_url: string | null;
   status: 'in_progress' | 'completed' | 'archived' | 'planned';
   display_order: number;
+  updated_at?: string;
 }
 
 export interface Contact {
