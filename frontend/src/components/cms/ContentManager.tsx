@@ -15,6 +15,8 @@ import {
   getSiteSettings,
   getAllThemes,
   updateProject,
+  createTheme,
+  deleteTheme,
   updateSkill,
   updateContact,
   updateHero,
@@ -56,6 +58,8 @@ const CONTENT_CONFIG: Record<string, ContentConfig> = {
     table: 'themes',
     getData: getAllThemes,
     updateData: updateTheme,
+    createData: createTheme,
+    deleteData: deleteTheme,
     fields: [
       { name: 'name', label: 'Theme Name', type: 'text', required: true },
       { name: 'color_primary', label: 'Primary Color', type: 'color' },

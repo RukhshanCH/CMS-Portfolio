@@ -556,6 +556,20 @@ export async function updateTheme(portfolioId: string, themeId: string, updates:
   return true;
 }
 
+export async function deleteTheme(portfolioId: string, themeId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('themes')
+    .delete()
+    .eq('id', themeId)
+    .eq('portfolio_id', portfolioId);
+
+  if (error) {
+    console.error('Error deleting theme:', error);
+    return false;
+  }
+  return true;
+}
+
 // ─── HERO ───
 
 export async function getHero(portfolioId: string): Promise<Hero | null> {
