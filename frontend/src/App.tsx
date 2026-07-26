@@ -84,6 +84,14 @@ function applyThemeVariables(theme: Theme | null) {
   const root = document.documentElement;
   const isDark = !!theme.dark_mode;
 
+  // ─── Explicit Background / Surface (new DB columns) ───
+  // Use DB values if present; otherwise derive from dark/light mode
+  const backgroundColor = theme.color_background || (isDark ? theme.color_dark || '#0f172a' : theme.color_light || '#ffffff');
+  const surfaceColor = theme.color_surface || (isDark ? '#1e293b' : theme.color_light || '#f8fafc');
+
+  root.style.setProperty('--color-background', backgroundColor);
+  root.style.setProperty('--color-surface', surfaceColor);
+
   // ─── Core Colors (legacy + normalized) ───
   root.style.setProperty('--primary', theme.color_primary);
   root.style.setProperty('--color-primary', theme.color_primary);
@@ -107,10 +115,6 @@ function applyThemeVariables(theme: Theme | null) {
   root.style.setProperty('--text-light', theme.color_text_muted || '#64748b');
   root.style.setProperty('--color-text-muted', isDark ? '#94a3b8' : (theme.color_text_muted || '#64748b'));
 
-  // ─── Surface / Background Aliases ───
-  root.style.setProperty('--color-background', isDark ? (theme.color_dark || '#0f172a') : (theme.color_light || '#ffffff'));
-  root.style.setProperty('--color-surface', isDark ? '#1e293b' : (theme.color_light || '#ffffff'));
-
   // ─── Semantic Colors ───
   root.style.setProperty('--success', theme.color_success || '#22c55e');
   root.style.setProperty('--color-success', theme.color_success || '#22c55e');
@@ -132,7 +136,7 @@ function applyThemeVariables(theme: Theme | null) {
   root.style.setProperty('--featured', theme.color_featured || '#fbbf24');
   root.style.setProperty('--featured-glow', theme.color_featured || '#fbbf24');
 
-  // ─── Dark Mode ───
+  // ─── Dark Mode Classes ───
   if (isDark) {
     root.style.setProperty('--dm-bg', theme.color_dark || '#0f172a');
     root.style.setProperty('--dm-bg-secondary', `color-mix(in srgb, ${theme.color_dark || '#0f172a'} 80%, ${theme.color_light || '#fff'})`);

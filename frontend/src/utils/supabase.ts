@@ -58,6 +58,7 @@ export interface Theme {
   is_active: boolean;
   is_featured?: boolean;
   order_index?: number;
+
   color_primary: string;
   color_secondary: string;
   color_accent: string;
@@ -73,14 +74,21 @@ export interface Theme {
   color_warning: string;
   color_danger: string;
   color_featured: string;
+  color_background: string;
+  color_surface: string;
+
   font_family: string;
-  border_radius: number | string;
-  max_width: number | string;
+  border_radius: number;
+  max_width: number;
   gradient_direction: string;
+
   card_style: string;
   button_style: string;
   enable_animations: boolean;
   dark_mode: boolean;
+
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Hero {

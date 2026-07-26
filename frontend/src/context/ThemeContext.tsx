@@ -122,7 +122,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         // Button style
         root.style.setProperty('--btn-style', theme.buttonStyle);
 
-        // Dark mode
+        // Dark mode class
         if (theme.darkMode) {
             root.classList.add('dark-mode');
         } else {
