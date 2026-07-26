@@ -37,7 +37,7 @@ interface AdminContextType {
   portfolioId: string;
   portfolio: Portfolio | null;
   data: PortfolioData | null;
-  theme: Theme | null;
+  theme: Theme[];
   members: PortfolioMember[];
   invitations: Invitation[];
   loading: boolean;
@@ -60,15 +60,16 @@ export const useAdmin = () => {
 
 const NAV_ITEMS = [
   { path: 'dashboard', label: '📊 Dashboard', id: 'dashboard' },
+  { path: 'inbox', label: '📨 Inbox', id: 'inbox' },
   { path: 'theme', label: '🎨 Theme', id: 'theme' },
   { path: 'hero', label: '🏠 Hero', id: 'hero' },
   { path: 'about', label: '👤 About', id: 'about' },
   { path: 'skills', label: '⭐ Skills', id: 'skills' },
   { path: 'projects', label: '🚀 Projects', id: 'projects' },
   { path: 'contact', label: '📧 Contact', id: 'contact' },
-  { path: 'settings', label: '⚙️ Settings', id: 'settings' },
+  { path: 'pages', label: '📄 Pages', id: 'pages' },
   { path: 'members', label: '👥 Members', id: 'members' },
-  { path: 'inbox', label: '📨 Inbox', id: 'inbox' },
+  { path: 'settings', label: '⚙️ Settings', id: 'settings' },
 ];
 
 // ─── ADMIN LAYOUT ───

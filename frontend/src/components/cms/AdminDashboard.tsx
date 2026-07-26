@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { useAdmin } from '../../layouts/AdminLayout';
 
 export default function AdminDashboard() {
-  const { portfolio, data, members, invitations, portfolioId } = useAdmin();
+  const { portfolio, data, theme, members, invitations, portfolioId } = useAdmin();
 
   // Guard: if context is still settling, show nothing (AdminLayout handles loading)
   if (!portfolio) {
@@ -16,6 +16,9 @@ export default function AdminDashboard() {
       </div>
     );
   }
+
+  const navPath = (segment: string) =>
+    `/admin/${portfolioId}${segment ? `/${segment}` : ''}`;
 
   const stats = [
     {
@@ -29,6 +32,12 @@ export default function AdminDashboard() {
       value: data?.skills?.length ?? 0,
       icon: '⭐',
       path: 'skills',
+    },
+    {
+      label: 'Themes',
+      value: theme?.length ?? 0,
+      icon: '⭐',
+      path: 'theme',
     },
     {
       label: 'Team Members',
@@ -62,7 +71,7 @@ export default function AdminDashboard() {
       {/* Stats Grid */}
       <div className="stats-grid-sm">
         {stats.map((stat) => (
-          <Link key={stat.label} to={stat.path} className="stat-card-link">
+          <Link key={stat.label} to={navPath(stat.path)} className="stat-card-link">
             <span className="stat-icon-lg">{stat.icon}</span>
             <span className="stat-value-lg">{stat.value}</span>
             <span className="stat-label-sm">{stat.label}</span>
@@ -75,7 +84,7 @@ export default function AdminDashboard() {
         <h2 className="dashboard-section-title">Quick Actions</h2>
         <div className="actions-grid">
           {quickActions.map((action) => (
-            <Link key={action.path} to={action.path} className="action-card-link">
+            <Link key={action.path} to={navPath(action.path)} className="action-card-link">
               <span className="action-icon">{action.icon}</span>
               <span className="action-text">{action.text}</span>
             </Link>

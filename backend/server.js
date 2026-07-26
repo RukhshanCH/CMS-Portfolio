@@ -268,7 +268,7 @@ async function seedDefaults() {
   const { error: contactError } = await supabase.from('contact').insert({
     email: 'hello@example.com',
     form_enabled: true,
-    whatsapp_default_message: 'Hello, I would like to work with you.',
+    whatsapp_message: 'Hello, I would like to work with you.',
   });
   if (contactError) console.error('❌ Error seeding contact:', contactError);
   else console.log('✅ Contact config seeded');

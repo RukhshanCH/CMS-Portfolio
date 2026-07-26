@@ -124,6 +124,97 @@
   --backdrop-blur-sm: blur(4px);
 }
 
+/* ============================================
+   Scrollbars — Theme-Aware
+   ============================================ */
+
+/* ─── WebKit (Chrome, Safari, Edge) ─── */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--gray-warm);
+  border-radius: var(--radius-pill);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gray);
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--gray-warm);
+  transition: background var(--transition-fast);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-light);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--gray-warm);
+}
+
+/* ─── Firefox ─── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--gray) var(--gray-warm);
+}
+
+/* ─── Dark Mode Overrides ─── */
+.dark-mode ::-webkit-scrollbar-track {
+  background: var(--dm-bg-secondary);
+}
+
+.dark-mode ::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-color: var(--dm-bg-secondary);
+}
+
+.dark-mode ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+.dark-mode ::-webkit-scrollbar-corner {
+  background: var(--dm-bg-secondary);
+}
+
+.dark-mode * {
+  scrollbar-color: #334155 var(--dm-bg-secondary);
+}
+
+/* ─── Admin Sidebar Specific ─── */
+.admin-sidebar::-webkit-scrollbar,
+.admin-sidebar *::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.admin-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border: none;
+}
+
+.admin-sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+/* ─── Modal / Overlay Areas ─── */
+.modal-content-lg::-webkit-scrollbar,
+.modal-admin::-webkit-scrollbar,
+.form-card::-webkit-scrollbar {
+  width: 8px;
+}
+
+/* ─── Content Manager Form Grid ─── */
+.form-grid::-webkit-scrollbar {
+  height: 6px;
+}
+
+/* ─── Table Scroll Wrapper ─── */
+.cms-table-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+
 /* Button styles based on theme */
 .btn-primary {
   background: var(--primary);
@@ -3296,9 +3387,9 @@ a {
 }
 
 /* Dark-mode button text fix (existing .btn-primary relies on --light) */
-.dark-mode .btn-primary {
+/* .dark-mode .btn-primary {
   color: #ffffff;
-}
+} */
 
 .dark-mode .btn-success {
   color: #ffffff;
@@ -3337,7 +3428,7 @@ a {
 
 .btn-ghost-sm:hover {
   background: rgba(255, 255, 255, 0.05);
-  color: var(--text);
+  color: var(--accent);
 }
 
 .dashboard-section {
@@ -3428,7 +3519,7 @@ a {
   font-size: 18px;
   font-weight: 600;
   margin: 0;
-  color: var(--text);
+  color: var(--accent);
 }
 
 .portfolio-slug {
@@ -4087,6 +4178,10 @@ a {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.color-field input {
+  padding: 3px;
 }
 
 .color-field .form-input-dark {
