@@ -111,8 +111,7 @@ export interface Skill {
   portfolio_id: string;
   is_active: boolean;
   name: string;
-  level: string;      // "Beginner" | "Intermediate" | "Advanced" | "Expert"
-  percentage: number; // 0–100
+  level: string; // "Beginner" | "Intermediate" | "Advanced" | "Expert"
   created_at?: string;
   updated_at?: string;
 }
@@ -147,14 +146,30 @@ export interface Contact {
   id: string;
   portfolio_id: string;
   is_active: boolean;
+
+  heading: string;
+  description: string;
   email: string;
   phone: string;
   location: string;
+
   whatsapp_number: string;
-  whatsapp_default_message: string;
-  social_links: { platform: string; url: string }[];
+  whatsapp_message: string;
+  linkedin_url: string;
+  github_url: string;
+  twitter_url: string;
+  instagram_url: string;
+  facebook_url: string;
+  reddit_url: string;
+  youtube_url: string;
+  dribbble_url: string;
+  behance_url: string;
+
   form_enabled: boolean;
   form_success_message: string;
+
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface SiteSettings {

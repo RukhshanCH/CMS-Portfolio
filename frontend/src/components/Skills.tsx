@@ -37,6 +37,12 @@ function normalizeSkillData(item: ContentItem | SupabaseSkill | null): Record<st
 // ─── COMPONENT ───
 
 export default function Skills({ items = [] }: SkillsProps) {
+  const LEVEL_TO_PERCENTAGE: Record<string, number> = {
+    Beginner: 25,
+    Intermediate: 50,
+    Advanced: 75,
+    Expert: 100,
+  };
   // Normalize all items to flat data objects
   const normalizedItems = items
     .map(normalizeSkillData)
@@ -57,7 +63,7 @@ export default function Skills({ items = [] }: SkillsProps) {
               // Support both `name` (Supabase) and `title` (legacy)
               const name = String(d.name || d.title || 'Skill');
               const level = String(d.level || 'Intermediate');
-              const percentage = Math.min(100, Math.max(0, Number(d.percentage ?? d.level ?? 75)));
+              const percentage = Math.min(100, Math.max(0, LEVEL_TO_PERCENTAGE[level] ?? 50));
 
               return (
                 <div key={id} className="skill-item">

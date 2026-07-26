@@ -37,7 +37,7 @@ interface ContentField {
   type: string;
   required?: boolean;
   defaultValue?: any;
-  options?: { label: string; value: string }[];
+  options?: string[] | { label: string; value: string }[];
 }
 
 interface ContentConfig {
@@ -164,8 +164,12 @@ const CONTENT_CONFIG: Record<string, ContentConfig> = {
     deleteData: deleteSkill,
     fields: [
       { name: 'name', label: 'Skill Name', type: 'text', required: true },
-      { name: 'level', label: 'Level (e.g. Beginner, Intermediate, Advanced)', type: 'text' },
-      { name: 'percentage', label: 'Proficiency % (0-100)', type: 'number' },
+      {
+        name: 'level',
+        label: 'Level',
+        type: 'select',
+        options: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
+      },
       { name: 'is_active', label: 'Active', type: 'checkbox' },
     ],
   },
@@ -175,11 +179,22 @@ const CONTENT_CONFIG: Record<string, ContentConfig> = {
     getData: getContact,
     updateData: updateContact,
     fields: [
+      { name: 'heading', label: 'Heading', type: 'text' },
+      { name: 'description', label: 'Description', type: 'textarea' },
       { name: 'email', label: 'Email', type: 'text' },
       { name: 'phone', label: 'Phone', type: 'text' },
       { name: 'location', label: 'Location', type: 'text' },
       { name: 'whatsapp_number', label: 'WhatsApp Number', type: 'text' },
-      { name: 'whatsapp_default_message', label: 'WhatsApp Default Message', type: 'text' },
+      { name: 'whatsapp_message', label: 'WhatsApp Default Message', type: 'text' },
+      { name: 'linkedin_url', label: 'LinkedIn URL', type: 'text' },
+      { name: 'github_url', label: 'GitHub URL', type: 'text' },
+      { name: 'twitter_url', label: 'Twitter URL', type: 'text' },
+      { name: 'instagram_url', label: 'Instagram URL', type: 'text' },
+      { name: 'facebook_url', label: 'Facebook URL', type: 'text' },
+      { name: 'reddit_url', label: 'Reddit URL', type: 'text' },
+      { name: 'youtube_url', label: 'YouTube URL', type: 'text' },
+      { name: 'dribbble_url', label: 'Dribbble URL', type: 'text' },
+      { name: 'behance_url', label: 'Behance URL', type: 'text' },
       { name: 'form_enabled', label: 'Enable Contact Form', type: 'checkbox' },
       { name: 'form_success_message', label: 'Success Message', type: 'text' },
       { name: 'is_active', label: 'Active', type: 'checkbox' },
@@ -511,7 +526,9 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
               ? ['rounded', 'sharp', 'glass']
               : field.name === 'button_style'
                 ? ['gradient', 'solid', 'outline', 'glow']
-                : []);
+                : field.name === 'level'
+                  ? ['Beginner', 'Intermediate', 'Advanced', 'Expert']
+                  : []);
 
         return (
           <select
