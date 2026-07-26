@@ -1,6 +1,5 @@
 // ============================================
 // pages/AuthPage.tsx — Login & Signup (FIXED)
-// Uses Supabase Auth with proper redirect handling
 // ============================================
 
 import React, { useState, useEffect } from 'react';
@@ -20,7 +19,9 @@ export default function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  // Check if already logged in on mount
+  // FIX: Block render until session check completes
+  const [checkingSession, setCheckingSession] = useState(true);
+
   useEffect(() => {
     checkExistingSession();
   }, []);
@@ -31,6 +32,7 @@ export default function AuthPage() {
       console.log('Already logged in, redirecting to', redirectTo);
       navigate(redirectTo, { replace: true });
     }
+    setCheckingSession(false);
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,7 +43,6 @@ export default function AuthPage() {
 
     try {
       if (!isLogin) {
-        // SIGN UP
         if (password !== confirmPassword) {
           throw new Error('Passwords do not match');
         }
@@ -49,7 +50,6 @@ export default function AuthPage() {
 
         if (signUpError) throw signUpError;
 
-        // Check if user already exists (identities array empty)
         if (data.user?.identities?.length === 0) {
           setMessage('Account already exists. Please sign in.');
           setIsLogin(true);
@@ -57,23 +57,19 @@ export default function AuthPage() {
           return;
         }
 
-        // If email confirmation is required, session will be null
         if (!data.session) {
           setMessage('Check your email for confirmation link, or sign in if email confirmation is disabled.');
           setLoading(false);
           return;
         }
 
-        // Auto-login after signup (if email confirmation disabled)
         console.log('Signup successful, session exists, redirecting...');
         navigate(redirectTo, { replace: true });
 
       } else {
-        // SIGN IN
         const { data, error: signInError } = await signIn(email, password);
 
         if (signInError) {
-          // Provide helpful error messages
           let msg = signInError.message;
           if (signInError.message.includes('Invalid login credentials')) {
             msg = 'Invalid email or password.';
@@ -87,7 +83,6 @@ export default function AuthPage() {
         if (data.session) {
           console.log('Login successful, session:', data.session.user?.email);
           console.log('Redirecting to:', redirectTo);
-          // Small delay to ensure session is propagated
           setTimeout(() => {
             navigate(redirectTo, { replace: true });
           }, 100);
@@ -102,6 +97,20 @@ export default function AuthPage() {
       setLoading(false);
     }
   };
+
+  // FIX: Early-return loader so the form never flashes
+  if (checkingSession) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <div className="spinner-box">
+            <div className="spinner" />
+          </div>
+          <p className="auth-text">Checking session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-page">

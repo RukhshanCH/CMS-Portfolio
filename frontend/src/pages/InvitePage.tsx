@@ -1,6 +1,5 @@
 // ============================================
-// pages/InvitePage.tsx — Accept Invitation
-// User clicks invite link, signs up/logs in, joins portfolio
+// pages/InvitePage.tsx — Accept Invitation (FIXED)
 // ============================================
 
 import React, { useState, useEffect } from 'react';
@@ -15,7 +14,9 @@ export default function InvitePage() {
   const [step, setStep] = useState<'checking' | 'login' | 'accepting' | 'success' | 'error'>('checking');
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Login form state (if not already logged in)
+  // FIX: Explicit gate to prevent any flash before auth check completes
+  const [sessionChecked, setSessionChecked] = useState(false);
+
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,7 +31,6 @@ export default function InvitePage() {
     const user = await getCurrentUser();
 
     if (user) {
-      // Already logged in — try to accept immediately
       setStep('accepting');
       const success = await acceptInvitation(token!);
       if (success) {
@@ -41,12 +41,11 @@ export default function InvitePage() {
         setErrorMsg('Invalid or expired invitation link.');
       }
     } else {
-      // Need to login/signup first
       setStep('login');
-      // Pre-fill email if passed in query params
       const inviteEmail = searchParams.get('email');
       if (inviteEmail) setEmail(inviteEmail);
     }
+    setSessionChecked(true);
   }
 
   async function handleAuthAndAccept(e: React.FormEvent) {
@@ -75,7 +74,6 @@ export default function InvitePage() {
 
       if (authError) throw authError;
 
-      // Now accept the invitation
       setStep('accepting');
       const success = await acceptInvitation(token!);
 
@@ -93,16 +91,28 @@ export default function InvitePage() {
     }
   }
 
-  if (step === 'checking' || step === 'accepting') {
+  // FIX: Block everything until the initial auth check is done
+  if (!sessionChecked) {
     return (
       <div className="auth-page">
         <div className="auth-card">
           <div className="spinner-box">
             <div className="spinner" />
           </div>
-          <p className="auth-text">
-            {step === 'checking' ? 'Checking invitation...' : 'Accepting invitation...'}
-          </p>
+          <p className="auth-text">Checking invitation...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'accepting') {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <div className="spinner-box">
+            <div className="spinner" />
+          </div>
+          <p className="auth-text">Accepting invitation...</p>
         </div>
       </div>
     );

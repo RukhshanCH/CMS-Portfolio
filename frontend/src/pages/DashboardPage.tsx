@@ -45,10 +45,11 @@ export default function DashboardPage() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
+
+    const slug = newSlug.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     if (!newTitle || !newSlug) return;
 
     setCreating(true);
-    const slug = newSlug.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
     const portfolio = await createPortfolio(newTitle, slug, newDescription || undefined);
     if (portfolio) {

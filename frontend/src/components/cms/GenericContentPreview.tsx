@@ -1,11 +1,24 @@
 // src/components/cms/GenericContentPreview.tsx
 
+import { useState } from 'react';
+
 interface GenericContentPreviewProps {
     item: Record<string, unknown>;
     type: string;
 }
 
 export default function GenericContentPreview({ item, type }: GenericContentPreviewProps) {
+    // FIX: Track broken images to show fallback UI
+    const [brokenImages, setBrokenImages] = useState<Set<string>>(new Set());
+
+    const handleImageError = (key: string) => {
+        setBrokenImages(prev => {
+            const next = new Set(prev);
+            next.add(key);
+            return next;
+        });
+    };
+
     const renderField = (key: string, value: unknown) => {
         if (value === null || value === undefined) return null;
         if (key === 'id' || key === 'created_at' || key === 'portfolio_id') return null;
@@ -16,14 +29,20 @@ export default function GenericContentPreview({ item, type }: GenericContentPrev
             (key.includes('image') || key.includes('photo') || key.includes('avatar')) &&
             value.match(/^https?:\/\//)
         ) {
+            const isBroken = brokenImages.has(key);
             return (
                 <div key={key} className="preview-field">
                     <label className="preview-label">{key}</label>
-                    <img
-                        src={value}
-                        alt={key}
-                        className="preview-image"
-                    />
+                    {isBroken ? (
+                        <div className="preview-image-error">⚠️ Failed to load image</div>
+                    ) : (
+                        <img
+                            src={value}
+                            alt={key}
+                            className="preview-image"
+                            onError={() => handleImageError(key)}
+                        />
+                    )}
                 </div>
             );
         }

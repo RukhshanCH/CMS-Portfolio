@@ -4,6 +4,7 @@
 // This page now shows a reference of available content types and their fields
 // ============================================
 
+import { Link } from 'react-router-dom';
 import { useAdmin } from '../../layouts/AdminLayout';
 
 const CONTENT_TYPES = [
@@ -81,12 +82,12 @@ export default function ContentTypeBuilder() {
                 ))}
               </div>
             </div>
-            <a
-              href={`/admin/${portfolioId}/${type.name === 'project' ? 'projects' : type.name === 'skill' ? 'skills' : type.name}`}
+            <Link
+              to={`/admin/${portfolioId}/${type.name === 'project' ? 'projects' : type.name === 'skill' ? 'skills' : type.name}`}
               className="ref-link"
             >
               Manage {type.label} →
-            </a>
+            </Link>
           </div>
         ))}
       </div>

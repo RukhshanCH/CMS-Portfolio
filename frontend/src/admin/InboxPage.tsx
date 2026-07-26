@@ -12,6 +12,7 @@ export default function InboxPage() {
   const { portfolioId } = useAdmin();
   const [submissions, setSubmissions] = useState<ContactSubmission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [markingAll, setMarkingAll] = useState(false);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
   useEffect(() => {
@@ -30,6 +31,19 @@ export default function InboxPage() {
     if (!portfolioId) return;
     await markSubmissionAsRead(portfolioId, id);
     await loadSubmissions();
+  }
+
+  async function handleMarkAllRead() {
+    if (!portfolioId) return;
+    const unread = submissions.filter(s => !s.is_read);
+    if (unread.length === 0) return;
+
+    setMarkingAll(true);
+    // Fire off all marks in parallel. If you have many unread items,
+    // consider adding a bulk `markAllSubmissionsAsRead` to your Supabase utils instead.
+    await Promise.all(unread.map(s => markSubmissionAsRead(portfolioId, s.id)));
+    await loadSubmissions();
+    setMarkingAll(false);
   }
 
   const filtered = filter === 'unread'
@@ -51,19 +65,32 @@ export default function InboxPage() {
             {submissions.length} total · {unreadCount} unread
           </p>
         </div>
-        <div className="filter-group">
-          <button
-            onClick={() => setFilter('all')}
-            className={`filter-chip ${filter === 'all' ? 'active' : ''}`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setFilter('unread')}
-            className={`filter-chip ${filter === 'unread' ? 'active' : ''}`}
-          >
-            Unread {unreadCount > 0 && `(${unreadCount})`}
-          </button>
+
+        <div className="inbox-toolbar">
+          <div className="filter-group">
+            <button
+              onClick={() => setFilter('all')}
+              className={`filter-chip ${filter === 'all' ? 'active' : ''}`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setFilter('unread')}
+              className={`filter-chip ${filter === 'unread' ? 'active' : ''}`}
+            >
+              Unread {unreadCount > 0 && `(${unreadCount})`}
+            </button>
+          </div>
+
+          {unreadCount > 0 && (
+            <button
+              onClick={handleMarkAllRead}
+              disabled={markingAll}
+              className="btn-text btn-mark-all"
+            >
+              {markingAll ? 'Marking…' : 'Mark all as read'}
+            </button>
+          )}
         </div>
       </div>
 

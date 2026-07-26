@@ -64,6 +64,12 @@ export default function MembersPage() {
         </div>
       </div>
 
+      {members.length === 0 && (
+        <div className="dashboard-section-wrap">
+          <h3 className="section-title-sm">No members yet.</h3>
+        </div>
+      )}
+
       {/* Pending Invitations */}
       {invitations.length > 0 && (
         <div className="dashboard-section-wrap">
@@ -91,6 +97,11 @@ export default function MembersPage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+      {invitations.length === 0 && (
+        <div className="dashboard-section-wrap">
+          <h3 className="section-title-sm">No pending invitations.</h3>
         </div>
       )}
     </div>

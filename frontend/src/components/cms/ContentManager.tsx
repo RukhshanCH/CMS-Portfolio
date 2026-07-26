@@ -292,22 +292,6 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
     }
   }, [preview.isOpen]);
 
-  useEffect(() => {
-    if (!editingId) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setEditingId(null);
-        setFormData({});
-        setSaveError(null);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [editingId]);
-
   const loadData = useCallback(async () => {
     if (!config || !portfolioId) return;
     setLoading(true);
@@ -450,7 +434,7 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
     config?.fields.forEach((f) => {
       if (f.defaultValue !== undefined) {
         empty[f.name] = f.defaultValue;
-      } else if (f.type === 'checkbox' ? false : f.type === 'number' ? 0 : '') {
+      } else if (f.type === 'checkbox') {
         empty[f.name] = false;
       } else if (f.type === 'number') {
         empty[f.name] = null;
@@ -470,7 +454,7 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
     setSaveError(null);
   }
 
-  async function handleSave() {
+  const handleSave = useCallback(async () => {
     if (!config || !portfolioId) return;
 
     const validationError = validateForm();
@@ -501,7 +485,7 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
     } finally {
       setSaving(false);
     }
-  }
+  }, [setSaveError, config, portfolioId, editingId, formData, validateForm, loadData, refreshData]);
 
   async function handleDelete(id: string) {
     if (!config?.deleteData || !portfolioId) return;
@@ -522,6 +506,25 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
   function handleChange(field: string, value: any) {
     setFormData((prev) => ({ ...prev, [field]: value }));
   }
+
+  useEffect(() => {
+    if (!editingId) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setEditingId(null);
+        setFormData({});
+        setSaveError(null);
+      }
+      if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editingId, handleSave]);
 
   function renderField(field: ContentField) {
     const value = formData[field.name];
@@ -669,7 +672,13 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
 
       {/* Edit Form */}
       {editingId && (
-        <div className="form-card">
+        <form
+          className="form-card"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSave();
+          }}
+        >
           <h3 className="form-title">
             {editingId === 'new' ? `Create New ${config.title.replace(/s$/, '')}` : 'Edit'}
           </h3>
@@ -689,6 +698,7 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
           </div>
           <div className="modal-actions-row">
             <button
+              type="button"
               onClick={() => {
                 setEditingId(null);
                 setFormData({});
@@ -698,11 +708,11 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
             >
               Cancel
             </button>
-            <button onClick={handleSave} disabled={saving} className="btn-modal-submit">
+            <button type='submit' disabled={saving} className="btn-modal-submit">
               {saving ? 'Saving...' : 'Save'}
             </button>
           </div>
-        </div>
+        </form>
       )}
 
       {/* Items List */}
@@ -741,28 +751,27 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
                 >
                   Preview
                 </button>
-
-                {preview.isOpen && preview.item && (
-                  <div className="modal-overlay" onClick={closePreview}>
-                    <div className="modal-content-lg" onClick={(e) => e.stopPropagation()}>
-                      <div className="modal-header-sticky">
-                        <h3>Preview: {String(preview.item.name || preview.item.title || 'Content')}</h3>
-                        <button onClick={closePreview} className="btn-close-modal">×</button>
-                      </div>
-
-                      <div className="modal-body">
-                        {preview.contentType === 'theme' ? (
-                          <ThemePreview previewData={preview.item as any} />
-                        ) : (
-                          <GenericContentPreview item={preview.item} type={preview.contentType} />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           ))
+        )}
+        {preview.isOpen && preview.item && (
+          <div className="modal-overlay" onClick={closePreview}>
+            <div className="modal-content-lg" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header-sticky">
+                <h3>Preview: {String(preview.item.name || preview.item.title || 'Content')}</h3>
+                <button onClick={closePreview} className="btn-close-modal">×</button>
+              </div>
+
+              <div className="modal-body">
+                {preview.contentType === 'theme' ? (
+                  <ThemePreview previewData={preview.item as any} />
+                ) : (
+                  <GenericContentPreview item={preview.item} type={preview.contentType} />
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

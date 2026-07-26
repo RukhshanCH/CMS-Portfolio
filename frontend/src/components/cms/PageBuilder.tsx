@@ -1,6 +1,5 @@
 // ============================================
-// components/cms/PageBuilder.tsx — Updated for Multi-Tenant
-// Manages site settings and navigation order
+// components/cms/PageBuilder.tsx — FIXED
 // ============================================
 
 import { useState, useEffect } from 'react';
@@ -46,7 +45,12 @@ export default function PageBuilder() {
     if (navOrder.includes(sectionId)) {
       setNavOrder(navOrder.filter(id => id !== sectionId));
     } else {
-      setNavOrder([...navOrder, sectionId]);
+      // FIX: Insert back in canonical order instead of appending to end
+      const canonicalIds = AVAILABLE_SECTIONS.map(s => s.id);
+      const newOrder = [...navOrder, sectionId].sort(
+        (a, b) => canonicalIds.indexOf(a) - canonicalIds.indexOf(b)
+      );
+      setNavOrder(newOrder);
     }
   }
 
@@ -96,7 +100,7 @@ export default function PageBuilder() {
       {/* Navigation Order */}
       <div className="dashboard-section-wrap">
         <h2 className="section-title-md">Navigation Order</h2>
-        <p className="hint-text">Toggle sections to show/hide them. Drag to reorder (use arrows).</p>
+        <p className="hint-text">Toggle sections to show/hide them. Use arrows to reorder.</p>
 
         <div className="nav-list">
           {AVAILABLE_SECTIONS.map((section) => {
@@ -147,7 +151,7 @@ export default function PageBuilder() {
       <button
         onClick={handleSave}
         disabled={saving}
-        className="btn btn-primary btn-block"
+        className="btn btn-primary btn-save-lg"
       >
         {saving ? 'Saving...' : '💾 Save Changes'}
       </button>
