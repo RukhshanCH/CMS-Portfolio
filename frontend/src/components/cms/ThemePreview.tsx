@@ -28,8 +28,6 @@ export default function ThemePreview({ previewData }: ThemePreviewProps) {
   const theme = previewData ? { ...activeTheme, ...previewData } : activeTheme;
 
   const isDark = !!theme.dark_mode;
-  const bgColor = theme.color_background || (isDark ? theme.color_dark || '#0f172a' : theme.color_light || '#ffffff');
-  const surfaceColor = theme.color_surface || (isDark ? '#1e293b' : theme.color_light || '#f8fafc');
 
   return (
     <div
@@ -39,7 +37,6 @@ export default function ThemePreview({ previewData }: ThemePreviewProps) {
         padding: '2rem',
         borderRadius: '12px',
         border: '2px solid var(--gray)',
-        background: bgColor,
         color: isDark ? theme.color_light || '#e2e8f0' : theme.color_text || '#334155',
         transition: 'all 0.3s ease',
       }}
@@ -126,14 +123,6 @@ export default function ThemePreview({ previewData }: ThemePreviewProps) {
       {/* Sample Card */}
       <div
         style={{
-          background:
-            theme.card_style === 'glass'
-              ? isDark
-                ? 'rgba(255,255,255,0.05)'
-                : 'rgba(255,255,255,0.8)'
-              : theme.card_style === 'sharp'
-                ? surfaceColor
-                : theme.color_light || '#ffffff',
           backdropFilter: theme.card_style === 'glass' ? 'blur(10px)' : 'none',
           borderRadius: theme.card_style === 'sharp' ? '0px' : `${theme.border_radius || 12}px`,
           padding: '1.5rem',
