@@ -104,55 +104,55 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="auth-page" style={styles.container}>
-      <div style={styles.card}>
-        <h1 style={styles.title}>
+    <div className="auth-page">
+      <div className="auth-card auth-card-narrow shadow-card-sm">
+        <h1 className="auth-title-lg">
           {isLogin ? 'Welcome Back' : 'Create Account'}
         </h1>
-        <p style={styles.subtitle}>
-          {isLogin 
-            ? 'Sign in to manage your portfolios' 
+        <p className="auth-subtitle">
+          {isLogin
+            ? 'Sign in to manage your portfolios'
             : 'Sign up to start building your portfolio'}
         </p>
 
-        {error && <div style={styles.error}>{error}</div>}
-        {message && <div style={styles.success}>{message}</div>}
+        {error && <div className="alert alert-error">{error}</div>}
+        {message && <div className="alert alert-success">{message}</div>}
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Email</label>
+        <form onSubmit={handleSubmit} className="auth-form">
+          <div className="form-group">
+            <label className="form-label-sm">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              style={styles.input}
+              className="form-input-dark"
               placeholder="you@example.com"
             />
           </div>
 
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Password</label>
+          <div className="form-group">
+            <label className="form-label-sm">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              style={styles.input}
+              className="form-input-dark"
               placeholder="••••••••"
             />
           </div>
 
           {!isLogin && (
-            <div style={styles.inputGroup}>
-              <label style={styles.label}>Confirm Password</label>
+            <div className="form-group">
+              <label className="form-label-sm">Confirm Password</label>
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                style={styles.input}
+                className="form-input-dark"
                 placeholder="••••••••"
               />
             </div>
@@ -161,20 +161,16 @@ export default function AuthPage() {
           <button
             type="submit"
             disabled={loading}
-            style={{
-              ...styles.button,
-              opacity: loading ? 0.7 : 1,
-              cursor: loading ? 'not-allowed' : 'pointer',
-            }}
+            className="btn btn-primary btn-block"
           >
-            {loading 
-              ? (isLogin ? 'Signing in...' : 'Creating account...') 
+            {loading
+              ? (isLogin ? 'Signing in...' : 'Creating account...')
               : (isLogin ? 'Sign In' : 'Create Account')
             }
           </button>
         </form>
 
-        <p style={styles.switchText}>
+        <p className="switch-text">
           {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
           <button
             onClick={() => {
@@ -182,7 +178,7 @@ export default function AuthPage() {
               setError(null);
               setMessage(null);
             }}
-            style={styles.switchButton}
+            className="btn-link"
           >
             {isLogin ? 'Sign Up' : 'Sign In'}
           </button>
@@ -191,103 +187,3 @@ export default function AuthPage() {
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: 'var(--color-background, #0f172a)',
-    padding: '20px',
-  },
-  card: {
-    width: '100%',
-    maxWidth: '420px',
-    background: 'var(--color-surface, #1e293b)',
-    borderRadius: '16px',
-    padding: '40px',
-    boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
-    border: '1px solid var(--color-gray, #334155)',
-  },
-  title: {
-    color: 'var(--color-text, #e2e8f0)',
-    fontSize: '28px',
-    fontWeight: 700,
-    marginBottom: '8px',
-    textAlign: 'center',
-  },
-  subtitle: {
-    color: 'var(--color-text-muted, #94a3b8)',
-    fontSize: '14px',
-    textAlign: 'center',
-    marginBottom: '28px',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '18px',
-  },
-  inputGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-  },
-  label: {
-    color: 'var(--color-text, #e2e8f0)',
-    fontSize: '13px',
-    fontWeight: 500,
-  },
-  input: {
-    padding: '12px 14px',
-    borderRadius: '10px',
-    border: '1px solid var(--color-gray, #334155)',
-    background: 'var(--color-background, #0f172a)',
-    color: 'var(--color-text, #e2e8f0)',
-    fontSize: '15px',
-    outline: 'none',
-    transition: 'border-color 0.2s',
-  },
-  button: {
-    padding: '14px',
-    borderRadius: '10px',
-    border: 'none',
-    background: 'var(--color-primary, #3b82f6)',
-    color: '#fff',
-    fontSize: '15px',
-    fontWeight: 600,
-    marginTop: '8px',
-    transition: 'opacity 0.2s',
-  },
-  error: {
-    padding: '12px',
-    borderRadius: '8px',
-    background: 'rgba(239, 68, 68, 0.15)',
-    color: '#ef4444',
-    fontSize: '13px',
-    marginBottom: '16px',
-  },
-  success: {
-    padding: '12px',
-    borderRadius: '8px',
-    background: 'rgba(34, 197, 94, 0.15)',
-    color: '#22c55e',
-    fontSize: '13px',
-    marginBottom: '16px',
-  },
-  switchText: {
-    color: 'var(--color-text-muted, #94a3b8)',
-    fontSize: '14px',
-    textAlign: 'center',
-    marginTop: '24px',
-  },
-  switchButton: {
-    background: 'none',
-    border: 'none',
-    color: 'var(--color-primary, #3b82f6)',
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
-    padding: 0,
-  },
-};

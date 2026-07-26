@@ -242,20 +242,20 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   if (loading) {
     return (
-      <div style={styles.loader}>
+      <div className="loader-wrapper full-page admin-loader">
         <div className="spinner" />
-        <p>Loading admin panel...</p>
+        <p className="loader-text">Loading admin panel...</p>
       </div>
     );
   }
 
   if (error || !data || !portfolioId) {
     return (
-      <div style={styles.loader}>
-        <p style={{ color: 'var(--color-danger, #ef4444)', marginBottom: 16 }}>
+      <div className="loader-wrapper full-page admin-loader">
+        <p className="error-text">
           {error || 'Portfolio not found or you do not have access.'}
         </p>
-        <button onClick={() => navigate('/dashboard')} style={styles.button}>
+        <button onClick={() => navigate('/dashboard')} className="btn btn-primary">
           Back to Dashboard
         </button>
       </div>
@@ -278,10 +278,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <AdminContext.Provider value={ctxValue}>
-      <div style={styles.layout}>
+      <div className="admin-layout">
         {/* Mobile Toggle */}
         <button
-          style={styles.mobileToggle}
+          className="mobile-toggle"
           onClick={() => setSidebarOpen((s) => !s)}
           aria-label="Toggle navigation"
         >
@@ -289,93 +289,70 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </button>
 
         {/* Sidebar */}
-        <aside
-          style={{
-            ...styles.sidebar,
-            transform: sidebarOpen ? 'translateX(0)' : undefined,
-          }}
-        >
-          <div style={styles.sidebarHeader}>
-            <h2 style={styles.portfolioTitle}>
+        <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
+          <div className="sidebar-header">
+            <h2 className="portfolio-title">
               {data.portfolio?.title || 'Admin'}
             </h2>
             <span
-              style={{
-                ...styles.statusBadge,
-                background: data.portfolio?.is_published
-                  ? 'rgba(34,197,94,0.2)'
-                  : 'rgba(148,163,184,0.2)',
-                color: data.portfolio?.is_published ? '#22c55e' : '#94a3b8',
-              }}
+              className={`status-badge-inline ${data.portfolio?.is_published ? 'published' : 'draft'}`}
             >
               {data.portfolio?.is_published ? 'Published' : 'Draft'}
             </span>
           </div>
 
-          <nav style={styles.nav}>
+          <nav className="admin-nav">
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.id}
                 to={navPath(item.path)}
                 onClick={() => setSidebarOpen(false)}
-                style={{
-                  ...styles.navItem,
-                  background:
-                    activeTab === item.id
-                      ? 'var(--color-primary, #3b82f6)'
-                      : 'transparent',
-                  color:
-                    activeTab === item.id
-                      ? '#fff'
-                      : 'var(--color-text-muted, #94a3b8)',
-                }}
+                className={`admin-nav-item ${activeTab === item.id ? 'active' : ''}`}
               >
                 {item.label}
               </Link>
             ))}
           </nav>
 
-          <div style={styles.sidebarFooter}>
+          <div className="sidebar-footer">
             <button
               onClick={() => {
                 setInviteError(null);
                 setShowInviteModal(true);
               }}
-              style={styles.inviteBtn}
+              className="btn-invite"
             >
               + Invite Member
             </button>
-            <button onClick={handleLogout} style={styles.logoutBtn}>
+            <button onClick={handleLogout} className="btn-logout">
               Sign Out
             </button>
           </div>
         </aside>
 
         {/* Overlay for mobile */}
-        {sidebarOpen && (
-          <div
-            style={styles.sidebarOverlay}
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
+        <div
+          className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`}
+          onClick={() => setSidebarOpen(false)}
+        />
 
         {/* Main Content */}
-        <main style={styles.main}>
+        <main className="admin-main">
           {/* Top Bar */}
-          <header style={styles.topBar}>
-            <div style={styles.breadcrumbs}>
-              <Link to="/dashboard" style={styles.breadcrumbLink}>
+          <header className="admin-topbar">
+            <div className="breadcrumbs">
+              <Link to="/dashboard" className="breadcrumb-link">
                 Dashboard
               </Link>
-              <span style={styles.breadcrumbSep}>/</span>
-              <span style={styles.breadcrumbCurrent}>Admin</span>
+              <span className="breadcrumb-sep">/</span>
+              <span className="breadcrumb-current">Admin</span>
             </div>
-            <div style={styles.topActions}>
+            <div className="top-actions">
               <a
                 href={`/portfolio/${data.portfolio?.slug}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={styles.previewLink}
+                className="btn-preview"
               >
                 🔗 Preview
               </a>
@@ -383,36 +360,36 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </header>
 
           {/* Content Area */}
-          <div style={styles.content}>{children}</div>
+          <div className="admin-content">{children}</div>
         </main>
 
         {/* Invite Modal */}
         {showInviteModal && (
           <div
-            style={styles.modalOverlay}
+            className="modal-overlay"
             onClick={() => setShowInviteModal(false)}
             role="dialog"
             aria-modal="true"
             aria-labelledby="invite-title"
           >
             <div
-              style={styles.modal}
+              className="modal-admin"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 id="invite-title" style={styles.modalTitle}>
+              <h3 id="invite-title" className="modal-title">
                 Invite Team Member
               </h3>
-              <p style={styles.modalDesc}>
+              <p className="modal-desc">
                 They'll receive an email with a link to join this portfolio as
                 an editor.
               </p>
 
               {inviteError && (
-                <div style={styles.inviteError}>{inviteError}</div>
+                <div className="alert alert-error">{inviteError}</div>
               )}
 
-              <div style={styles.inputGroup}>
-                <label htmlFor="invite-email" style={styles.label}>
+              <div className="modal-form-group">
+                <label htmlFor="invite-email" className="form-label-sm">
                   Email Address
                 </label>
                 <input
@@ -425,31 +402,24 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     if (e.key === 'Enter') handleInvite(inviteEmail);
                   }}
                   placeholder="colleague@example.com"
-                  style={styles.input}
+                  className="form-input"
                 />
               </div>
 
-              <div style={styles.modalActions}>
+              <div className="modal-actions-row">
                 <button
                   onClick={() => {
                     setShowInviteModal(false);
                     setInviteError(null);
                   }}
-                  style={styles.cancelBtn}
+                  className="btn-modal-cancel"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => handleInvite(inviteEmail)}
                   disabled={inviting || !inviteEmail.trim()}
-                  style={{
-                    ...styles.submitBtn,
-                    opacity: inviting || !inviteEmail.trim() ? 0.6 : 1,
-                    cursor:
-                      inviting || !inviteEmail.trim()
-                        ? 'not-allowed'
-                        : 'pointer',
-                  }}
+                  className="btn-modal-submit"
                 >
                   {inviting ? 'Sending...' : 'Send Invite'}
                 </button>
@@ -460,285 +430,4 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       </div>
     </AdminContext.Provider>
   );
-}
-
-// ─── Styles ───
-const styles: Record<string, React.CSSProperties> = {
-  layout: {
-    display: 'flex',
-    minHeight: '100vh',
-    background: 'var(--light)',
-    color: 'var(--color-text)',
-  },
-  loader: {
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '16px',
-    background: 'var(--light)',
-    color: 'var(--color-text-muted)',
-  },
-  button: {
-    padding: '12px 24px',
-    borderRadius: '10px',
-    border: 'none',
-    background: 'var(--color-primary)',
-    color: 'var(--color-light)',
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  mobileToggle: {
-    display: 'none',
-    position: 'fixed',
-    top: 16,
-    left: 16,
-    zIndex: 200,
-    padding: '10px 14px',
-    borderRadius: '8px',
-    border: '1px solid var(--color-gray)',
-    background: 'var(--gray-warm)',
-    color: 'var(--color-text)',
-    fontSize: '18px',
-    cursor: 'pointer',
-  },
-  sidebar: {
-    width: '260px',
-    background: 'var(--gray-warm)',
-    borderRight: '1px solid var(--color-gray)',
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    zIndex: 150,
-    transition: 'transform 0.25s ease',
-  },
-  sidebarOverlay: {
-    display: 'none',
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(0,0,0,0.5)',
-    zIndex: 140,
-  },
-  sidebarHeader: {
-    padding: '24px 20px',
-    borderBottom: '1px solid var(--color-gray)',
-  },
-  portfolioTitle: {
-    fontSize: '18px',
-    fontWeight: 700,
-    margin: '0 0 8px 0',
-    color: 'var(--color-text)',
-    wordBreak: 'break-word',
-  },
-  statusBadge: {
-    display: 'inline-block',
-    padding: '3px 10px',
-    borderRadius: '12px',
-    fontSize: '12px',
-    fontWeight: 500,
-  },
-  nav: {
-    flex: 1,
-    padding: '12px 8px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-    overflowY: 'auto',
-  },
-  navItem: {
-    padding: '10px 14px',
-    borderRadius: '8px',
-    textDecoration: 'none',
-    fontSize: '14px',
-    fontWeight: 500,
-    transition: 'all 0.15s',
-    display: 'block',
-  },
-  sidebarFooter: {
-    padding: '16px',
-    borderTop: '1px solid var(--color-gray)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-  },
-  inviteBtn: {
-    padding: '10px',
-    borderRadius: '8px',
-    border: '1px dashed var(--color-primary)',
-    background: 'transparent',
-    color: 'var(--color-primary)',
-    fontSize: '13px',
-    fontWeight: 600,
-    cursor: 'pointer',
-    width: '100%',
-  },
-  logoutBtn: {
-    padding: '10px',
-    borderRadius: '8px',
-    border: '1px solid var(--color-gray)',
-    background: 'transparent',
-    color: 'var(--color-text-muted)',
-    fontSize: '13px',
-    cursor: 'pointer',
-    width: '100%',
-  },
-  main: {
-    flex: 1,
-    marginLeft: '260px',
-    display: 'flex',
-    flexDirection: 'column',
-    minWidth: 0,
-  },
-  topBar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '16px 28px',
-    borderBottom: '1px solid var(--color-gray)',
-    background: 'var(--gray-warm)',
-  },
-  breadcrumbs: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    fontSize: '14px',
-  },
-  breadcrumbLink: {
-    color: 'var(--color-primary)',
-    textDecoration: 'none',
-  },
-  breadcrumbSep: {
-    color: 'var(--color-text-muted)',
-  },
-  breadcrumbCurrent: {
-    color: 'var(--color-text-muted)',
-  },
-  topActions: {
-    display: 'flex',
-    gap: '12px',
-  },
-  previewLink: {
-    padding: '8px 16px',
-    borderRadius: '8px',
-    background: 'var(--color-primary)',
-    color: 'var(--color-light)',
-    textDecoration: 'none',
-    fontSize: '13px',
-    fontWeight: 500,
-  },
-  content: {
-    flex: 1,
-    padding: '28px',
-    overflowY: 'auto',
-  },
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'rgba(0,0,0,0.7)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-    padding: '20px',
-  },
-  modal: {
-    background: 'var(--gray-warm)',
-    borderRadius: '16px',
-    padding: '28px',
-    width: '100%',
-    maxWidth: '420px',
-    border: '1px solid var(--color-gray)',
-  },
-  modalTitle: {
-    fontSize: '20px',
-    fontWeight: 700,
-    margin: '0 0 8px 0',
-    color: 'var(--color-text)',
-  },
-  modalDesc: {
-    fontSize: '14px',
-    color: 'var(--color-text-muted)',
-    margin: '0 0 20px 0',
-  },
-  inviteError: {
-    padding: '10px 14px',
-    background: 'var(--danger-bg)',
-    border: '1px solid var(--danger-border)',
-    borderRadius: '8px',
-    color: 'var(--danger-text)',
-    marginBottom: '16px',
-    fontSize: '14px',
-  },
-  inputGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-    marginBottom: '20px',
-  },
-  label: {
-    fontSize: '13px',
-    fontWeight: 500,
-    color: 'var(--color-text)',
-  },
-  input: {
-    padding: '12px 14px',
-    borderRadius: '10px',
-    border: '1px solid var(--color-gray)',
-    background: 'var(--light)',
-    color: 'var(--color-text)',
-    fontSize: '15px',
-    outline: 'none',
-  },
-  modalActions: {
-    display: 'flex',
-    gap: '12px',
-  },
-  cancelBtn: {
-    flex: 1,
-    padding: '12px',
-    borderRadius: '10px',
-    border: '1px solid var(--color-gray)',
-    background: 'transparent',
-    color: 'var(--color-text-muted)',
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  submitBtn: {
-    flex: 1,
-    padding: '12px',
-    borderRadius: '10px',
-    border: 'none',
-    background: 'var(--color-primary)',
-    color: 'var(--color-light)',
-    fontSize: '14px',
-    fontWeight: 600,
-  },
-};
-
-// Mobile media queries via injected style tag (CSS-in-JS workaround)
-const mobileCSS = `
-@media (max-width: 768px) {
-  [data-admin-layout] .mobile-toggle { display: block !important; }
-  [data-admin-layout] aside { transform: translateX(-100%); }
-  [data-admin-layout] main { margin-left: 0 !important; }
-  [data-admin-layout] .sidebar-overlay { display: block !important; }
-}
-`;
-if (typeof document !== 'undefined') {
-  const id = 'admin-layout-mobile';
-  if (!document.getElementById(id)) {
-    const style = document.createElement('style');
-    style.id = id;
-    style.textContent = mobileCSS;
-    document.head.appendChild(style);
-  }
 }

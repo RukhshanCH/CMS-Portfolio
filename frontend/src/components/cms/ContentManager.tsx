@@ -3,7 +3,7 @@
 // Generic content manager that works with any content type
 // ============================================
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAdmin } from '../../layouts/AdminLayout';
 import {
@@ -244,7 +244,7 @@ interface ContentManagerProps {
 interface PreviewState {
   isOpen: boolean;
   item: Record<string, unknown> | null;
-  contentType: string; // 'theme' | 'project' | 'hero' | etc.
+  contentType: string;
 }
 
 export default function ContentManager({ defaultTypeName }: ContentManagerProps) {
@@ -347,35 +347,30 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
   function processFormData(raw: Record<string, any>): Record<string, any> {
     if (!config) return raw;
 
-    // Build a clean payload from config.fields ONLY
     const processed: Record<string, any> = {};
 
     config.fields.forEach((field) => {
       let val = raw[field.name];
 
       if (field.type === 'checkbox') {
-        // Force real boolean — never "", undefined, or null
         processed[field.name] = !!val;
       } else if (field.type === 'number') {
-        // Empty number inputs become null so DB defaults work
         processed[field.name] =
           val === '' || val === undefined || val === null ? null : Number(val);
       } else if (field.type === 'textarea' || field.type === 'richtext') {
         processed[field.name] = val === '' ? null : val;
       } else {
-        // text, color, select, etc.
         processed[field.name] = val === '' ? null : val;
       }
     });
 
-    // Type-specific transformations
     switch (typeName) {
       case 'about':
         if (typeof processed.stats === 'string') {
           try {
             processed.stats = JSON.parse(processed.stats);
           } catch {
-            // Invalid JSON — Supabase will reject it
+            /* invalid JSON — Supabase will reject */
           }
         }
         break;
@@ -391,7 +386,7 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
           try {
             processed.images = JSON.parse(processed.images);
           } catch {
-            // Invalid JSON — Supabase will reject it
+            /* invalid JSON — Supabase will reject */
           }
         }
         if (processed.display_order !== undefined && processed.display_order !== '') {
@@ -404,7 +399,7 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
           try {
             processed.nav_order = JSON.parse(processed.nav_order);
           } catch {
-            // Leave as string if invalid JSON; DB or API should reject if strict
+            /* leave as string */
           }
         }
         break;
@@ -437,7 +432,6 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
   function handleEdit(item: any) {
     const editable: Record<string, any> = { ...item };
 
-    // Stringify arrays/objects so textareas display valid JSON instead of [object Object]
     Object.keys(editable).forEach((key) => {
       const val = editable[key];
       if (Array.isArray(val) || (val !== null && typeof val === 'object' && !(val instanceof Date))) {
@@ -467,7 +461,6 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
         f.name === 'nav_order' ||
         f.name === 'social_links'
       ) {
-        // JSON fields: start with a valid empty array string
         empty[f.name] = '[]';
       } else {
         empty[f.name] = '';
@@ -513,7 +506,6 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
   async function handleDelete(id: string) {
     if (!config?.deleteData || !portfolioId) return;
 
-    // Replace native confirm with a custom modal in production
     const confirmed = window.confirm('Are you sure you want to delete this item?');
     if (!confirmed) return;
 
@@ -541,7 +533,7 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
             value={value || ''}
             onChange={(e) => handleChange(field.name, e.target.value)}
             rows={4}
-            style={styles.textarea}
+            className="form-textarea"
           />
         );
       case 'richtext':
@@ -550,7 +542,7 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
             value={value || ''}
             onChange={(e) => handleChange(field.name, e.target.value)}
             rows={8}
-            style={styles.textarea}
+            className="form-textarea"
             placeholder="Supports markdown..."
           />
         );
@@ -560,23 +552,23 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
             type="checkbox"
             checked={!!value}
             onChange={(e) => handleChange(field.name, e.target.checked)}
-            style={styles.checkbox}
+            className="form-checkbox-input"
           />
         );
       case 'color':
         return (
-          <div style={styles.colorInputWrapper}>
+          <div className="color-field">
             <input
               type="color"
               value={value || '#000000'}
               onChange={(e) => handleChange(field.name, e.target.value)}
-              style={styles.colorInput}
+              className="color-picker"
             />
             <input
               type="text"
               value={value || ''}
               onChange={(e) => handleChange(field.name, e.target.value)}
-              style={{ ...styles.input, flex: 1 }}
+              className="form-input-dark"
             />
           </div>
         );
@@ -586,7 +578,7 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
             type="number"
             value={value ?? 0}
             onChange={(e) => handleChange(field.name, e.target.value)}
-            style={styles.input}
+            className="form-input-dark"
           />
         );
       case 'select': {
@@ -606,7 +598,7 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
           <select
             value={value || ''}
             onChange={(e) => handleChange(field.name, e.target.value)}
-            style={styles.select}
+            className="form-select"
           >
             <option value="" disabled>
               — Select {field.label} —
@@ -629,7 +621,7 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
             type="text"
             value={value || ''}
             onChange={(e) => handleChange(field.name, e.target.value)}
-            style={styles.input}
+            className="form-input-dark"
           />
         );
     }
@@ -637,9 +629,9 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
 
   if (!config) {
     return (
-      <div style={{ padding: '24px' }}>
-        <h2 style={{ color: 'var(--color-text, #e2e8f0)' }}>Unknown Content Type</h2>
-        <p style={{ color: 'var(--color-text-muted, #94a3b8)' }}>
+      <div className="content-manager">
+        <h2 className="content-title">Unknown Content Type</h2>
+        <p className="text-dim">
           The content type "{typeName}" is not configured.
         </p>
       </div>
@@ -648,18 +640,18 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
 
   if (loading) {
     return (
-      <p style={{ color: 'var(--color-text-muted, #94a3b8)', padding: '24px' }}>
-        Loading...
-      </p>
+      <div className="content-manager">
+        <p className="text-dim">Loading...</p>
+      </div>
     );
   }
 
   return (
-    <div style={{ padding: '24px' }}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>{config.title}</h1>
+    <div className="content-manager">
+      <div className="content-header">
+        <h1 className="content-title">{config.title}</h1>
         {config.createData && (
-          <button onClick={handleNew} style={styles.newButton}>
+          <button onClick={handleNew} className="btn-new">
             + New {config.title.replace(/s$/, '')}
           </button>
         )}
@@ -667,9 +659,9 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
 
       {/* Error Banner */}
       {error && (
-        <div style={styles.errorBanner}>
+        <div className="alert alert-error alert-dismissible">
           {error}
-          <button onClick={() => setError(null)} style={styles.errorClose}>
+          <button onClick={() => setError(null)} className="btn-close-alert">
             ×
           </button>
         </div>
@@ -677,36 +669,36 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
 
       {/* Edit Form */}
       {editingId && (
-        <div style={styles.formCard}>
-          <h3 style={styles.formTitle}>
+        <div className="form-card">
+          <h3 className="form-title">
             {editingId === 'new' ? `Create New ${config.title.replace(/s$/, '')}` : 'Edit'}
           </h3>
 
-          {saveError && <div style={styles.saveError}>{saveError}</div>}
+          {saveError && <div className="alert alert-error">{saveError}</div>}
 
-          <div style={styles.formGrid}>
+          <div className="form-grid">
             {config.fields.map((field) => (
-              <div key={field.name} style={styles.fieldGroup}>
-                <label style={styles.fieldLabel}>
+              <div key={field.name} className="form-group">
+                <label className="form-label-sm">
                   {field.label}
-                  {field.required && <span style={styles.required}> *</span>}
+                  {field.required && <span className="required-mark"> *</span>}
                 </label>
                 {renderField(field)}
               </div>
             ))}
           </div>
-          <div style={styles.formActions}>
+          <div className="modal-actions-row">
             <button
               onClick={() => {
                 setEditingId(null);
                 setFormData({});
                 setSaveError(null);
               }}
-              style={styles.cancelBtn}
+              className="btn-modal-cancel"
             >
               Cancel
             </button>
-            <button onClick={handleSave} disabled={saving} style={styles.saveBtn}>
+            <button onClick={handleSave} disabled={saving} className="btn-modal-submit">
               {saving ? 'Saving...' : 'Save'}
             </button>
           </div>
@@ -714,51 +706,51 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
       )}
 
       {/* Items List */}
-      <div style={styles.list}>
+      <div className="items-list">
         {items.length === 0 ? (
-          <p style={styles.empty}>
+          <div className="empty-state-box">
             No items yet. Click "New" to create one.
-          </p>
+          </div>
         ) : (
           items.map((item) => (
-            <div key={item.id} style={styles.itemCard}>
-              <div style={styles.itemInfo}>
-                <h4 style={styles.itemTitle}>
+            <div key={item.id} className="item-card">
+              <div className="item-info">
+                <h4 className="item-title">
                   {item.name || item.title || item.site_title || 'Untitled'}
                   {item.is_active === false && (
-                    <span style={styles.inactiveBadge}>Inactive</span>
+                    <span className="badge-inactive">Inactive</span>
                   )}
-                  {item.is_featured && <span style={styles.featuredBadge}>Featured</span>}
+                  {item.is_featured && <span className="badge-featured-sm">Featured</span>}
                 </h4>
                 {item.description && (
-                  <p style={styles.itemDesc}>{item.description.substring(0, 100)}...</p>
+                  <p className="item-desc">{item.description.substring(0, 100)}...</p>
                 )}
               </div>
-              <div style={styles.itemActions}>
-                <button onClick={() => handleEdit(item)} style={styles.editBtn}>
+              <div className="item-actions">
+                <button onClick={() => handleEdit(item)} className="btn-outline-primary-sm">
                   Edit
                 </button>
                 {config.deleteData && (
-                  <button onClick={() => handleDelete(item.id)} style={styles.deleteBtn}>
+                  <button onClick={() => handleDelete(item.id)} className="btn-outline-danger-sm">
                     Delete
                   </button>
                 )}
                 <button
                   onClick={() => handlePreview(item, config.name || 'content')}
-                  style={styles.previewBtn}
+                  className="btn-preview-sm"
                 >
                   Preview
                 </button>
 
                 {preview.isOpen && preview.item && (
-                  <div style={styles.modalOverlay} onClick={closePreview}>
-                    <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-                      <div style={styles.modalHeader}>
+                  <div className="modal-overlay" onClick={closePreview}>
+                    <div className="modal-content-lg" onClick={(e) => e.stopPropagation()}>
+                      <div className="modal-header-sticky">
                         <h3>Preview: {String(preview.item.name || preview.item.title || 'Content')}</h3>
-                        <button onClick={closePreview} style={styles.closeBtn}>×</button>
+                        <button onClick={closePreview} className="btn-close-modal">×</button>
                       </div>
 
-                      <div style={styles.modalBody}>
+                      <div className="modal-body">
                         {preview.contentType === 'theme' ? (
                           <ThemePreview previewData={preview.item as any} />
                         ) : (
@@ -776,297 +768,3 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
     </div>
   );
 }
-
-// ─── Styles ───
-
-const styles: Record<string, React.CSSProperties> = {
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '24px',
-  },
-  title: {
-    fontSize: '24px',
-    fontWeight: 700,
-    margin: 0,
-    color: 'var(--color-text)',
-  },
-  newButton: {
-    padding: '10px 20px',
-    borderRadius: '10px',
-    border: 'none',
-    background: 'var(--color-primary)',
-    color: 'var(--color-light)',
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  errorBanner: {
-    padding: '12px 16px',
-    background: 'var(--danger-bg)',
-    border: '1px solid var(--danger-border)',
-    borderRadius: '8px',
-    color: 'var(--danger-text)',
-    marginBottom: '16px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  errorClose: {
-    background: 'transparent',
-    border: 'none',
-    color: 'inherit',
-    fontSize: '18px',
-    cursor: 'pointer',
-    lineHeight: 1,
-  },
-  saveError: {
-    padding: '10px 14px',
-    background: 'var(--danger-bg)',
-    border: '1px solid var(--danger-border)',
-    borderRadius: '8px',
-    color: 'var(--danger-text)',
-    marginBottom: '16px',
-    fontSize: '14px',
-  },
-  formCard: {
-    padding: '24px',
-    background: 'var(--gray-warm)',
-    borderRadius: '12px',
-    border: '1px solid var(--color-gray)',
-    marginBottom: '24px',
-  },
-  formTitle: {
-    fontSize: '18px',
-    fontWeight: 600,
-    margin: '0 0 20px 0',
-    color: 'var(--color-text)',
-  },
-  formGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-    gap: '16px',
-    marginBottom: '20px',
-  },
-  fieldGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-  },
-  fieldLabel: {
-    fontSize: '13px',
-    fontWeight: 500,
-    color: 'var(--color-text)',
-  },
-  required: {
-    color: 'var(--color-danger)',
-  },
-  input: {
-    padding: '10px 12px',
-    borderRadius: '8px',
-    border: '1px solid var(--color-gray)',
-    background: 'var(--light)',
-    color: 'var(--color-text)',
-    fontSize: '14px',
-    outline: 'none',
-  },
-  textarea: {
-    padding: '10px 12px',
-    borderRadius: '8px',
-    border: '1px solid var(--color-gray)',
-    background: 'var(--light)',
-    color: 'var(--color-text)',
-    fontSize: '14px',
-    outline: 'none',
-    resize: 'vertical',
-    fontFamily: 'inherit',
-  },
-  select: {
-    padding: '10px 12px',
-    borderRadius: '8px',
-    border: '1px solid var(--color-gray)',
-    background: 'var(--light)',
-    color: 'var(--color-text)',
-    fontSize: '14px',
-    outline: 'none',
-  },
-  checkbox: {
-    width: '20px',
-    height: '20px',
-    cursor: 'pointer',
-    accentColor: 'var(--color-primary)',
-  },
-  colorInputWrapper: {
-    display: 'flex',
-    gap: '8px',
-    alignItems: 'center',
-  },
-  colorInput: {
-    width: '40px',
-    height: '40px',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    padding: 0,
-  },
-  formActions: {
-    display: 'flex',
-    gap: '12px',
-    justifyContent: 'flex-end',
-  },
-  cancelBtn: {
-    padding: '10px 20px',
-    borderRadius: '8px',
-    border: '1px solid var(--color-gray)',
-    background: 'transparent',
-    color: 'var(--color-text-muted)',
-    fontSize: '14px',
-    cursor: 'pointer',
-  },
-  saveBtn: {
-    padding: '10px 24px',
-    borderRadius: '8px',
-    border: 'none',
-    background: 'var(--color-primary)',
-    color: 'var(--color-light)',
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  list: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-  },
-  empty: {
-    padding: '40px',
-    textAlign: 'center',
-    color: 'var(--color-text-muted)',
-    background: 'var(--gray-warm)',
-    borderRadius: '12px',
-    border: '1px solid var(--color-gray)',
-  },
-  itemCard: {
-    padding: '16px 20px',
-    background: 'var(--gray-warm)',
-    borderRadius: '10px',
-    border: '1px solid var(--color-gray)',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  itemInfo: {
-    flex: 1,
-  },
-  itemTitle: {
-    fontSize: '15px',
-    fontWeight: 600,
-    margin: '0 0 4px 0',
-    color: 'var(--color-text)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  itemDesc: {
-    fontSize: '13px',
-    color: 'var(--color-text-muted)',
-    margin: 0,
-  },
-  itemActions: {
-    display: 'flex',
-    gap: '8px',
-  },
-  editBtn: {
-    padding: '6px 14px',
-    borderRadius: '6px',
-    border: '1px solid var(--color-primary)',
-    background: 'transparent',
-    color: 'var(--color-primary)',
-    fontSize: '13px',
-    cursor: 'pointer',
-  },
-  deleteBtn: {
-    padding: '6px 14px',
-    borderRadius: '6px',
-    border: '1px solid var(--color-danger)',
-    background: 'transparent',
-    color: 'var(--color-danger)',
-    fontSize: '13px',
-    cursor: 'pointer',
-  },
-  inactiveBadge: {
-    padding: '2px 8px',
-    borderRadius: '10px',
-    background: 'var(--color-gray)',
-    color: 'var(--color-text-muted)',
-    fontSize: '11px',
-    fontWeight: 500,
-  },
-  featuredBadge: {
-    padding: '2px 8px',
-    borderRadius: '10px',
-    background: 'var(--featured-glow)',
-    color: 'var(--dark)',
-    fontSize: '11px',
-    fontWeight: 500,
-  },
-  previewBtn: {
-    padding: '6px 14px',
-    background: 'var(--accent-bg)',
-    color: 'var(--color-secondary)',
-    border: '1px solid var(--accent-soft)',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '13px',
-    fontWeight: 500,
-  },
-  modalOverlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(0,0,0,0.6)',
-    backdropFilter: 'blur(4px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-    padding: '2rem',
-  },
-  modalContent: {
-    background: 'var(--light)',
-    borderRadius: '16px',
-    width: '100%',
-    maxWidth: '700px',
-    maxHeight: '90vh',
-    overflow: 'auto',
-    boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-    border: '1px solid var(--color-gray)',
-  },
-  modalHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '1.25rem 1.5rem',
-    borderBottom: '1px solid var(--color-gray)',
-    position: 'sticky',
-    top: 0,
-    background: 'var(--light)',
-    zIndex: 10,
-  },
-  modalBody: {
-    padding: '1.5rem',
-  },
-  closeBtn: {
-    width: '32px',
-    height: '32px',
-    borderRadius: '8px',
-    border: 'none',
-    background: 'transparent',
-    color: 'var(--color-text)',
-    fontSize: '1.25rem',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-};

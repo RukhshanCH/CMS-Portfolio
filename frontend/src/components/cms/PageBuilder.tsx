@@ -3,7 +3,7 @@
 // Manages site settings and navigation order
 // ============================================
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAdmin } from '../../layouts/AdminLayout';
 import { updateSiteSettings } from '../../utils/supabase';
 
@@ -64,28 +64,28 @@ export default function PageBuilder() {
 
   return (
     <div>
-      <h1 style={styles.title}>📄 Page Builder</h1>
-      <p style={styles.subtitle}>Configure site settings and navigation order</p>
+      <h1 className="inbox-title">📄 Page Builder</h1>
+      <p className="inbox-subtitle">Configure site settings and navigation order</p>
 
       {/* Site Settings */}
-      <div style={styles.section}>
-        <h2 style={styles.sectionTitle}>Site Settings</h2>
-        <div style={styles.formCard}>
-          <div style={styles.field}>
-            <label style={styles.label}>Site Title</label>
+      <div className="dashboard-section-wrap">
+        <h2 className="section-title-md">Site Settings</h2>
+        <div className="form-card">
+          <div className="form-group">
+            <label className="form-label-sm">Site Title</label>
             <input
               value={siteTitle}
               onChange={(e) => setSiteTitle(e.target.value)}
-              style={styles.input}
+              className="form-input-dark"
               placeholder="My Portfolio"
             />
           </div>
-          <div style={styles.field}>
-            <label style={styles.label}>Site Description</label>
+          <div className="form-group">
+            <label className="form-label-sm">Site Description</label>
             <textarea
               value={siteDescription}
               onChange={(e) => setSiteDescription(e.target.value)}
-              style={styles.textarea}
+              className="form-textarea"
               rows={3}
               placeholder="Brief description for SEO..."
             />
@@ -94,51 +94,44 @@ export default function PageBuilder() {
       </div>
 
       {/* Navigation Order */}
-      <div style={styles.section}>
-        <h2 style={styles.sectionTitle}>Navigation Order</h2>
-        <p style={styles.hint}>Toggle sections to show/hide them. Drag to reorder (use arrows).</p>
+      <div className="dashboard-section-wrap">
+        <h2 className="section-title-md">Navigation Order</h2>
+        <p className="hint-text">Toggle sections to show/hide them. Drag to reorder (use arrows).</p>
 
-        <div style={styles.navList}>
+        <div className="nav-list">
           {AVAILABLE_SECTIONS.map((section) => {
             const isEnabled = navOrder.includes(section.id);
             const index = navOrder.indexOf(section.id);
 
             return (
-              <div 
-                key={section.id} 
-                style={{
-                  ...styles.navItem,
-                  opacity: isEnabled ? 1 : 0.5,
-                  borderColor: isEnabled ? 'var(--color-primary, #3b82f6)' : 'var(--color-gray, #334155)',
-                }}
+              <div
+                key={section.id}
+                className={`nav-item ${isEnabled ? 'nav-item-enabled' : 'nav-item-disabled'}`}
               >
-                <div style={styles.navItemLeft}>
+                <div className="nav-item-left">
                   <button
                     onClick={() => toggleSection(section.id)}
-                    style={{
-                      ...styles.toggleBtn,
-                      background: isEnabled ? 'var(--color-success, #22c55e)' : 'var(--color-gray, #334155)',
-                    }}
+                    className={`toggle-btn ${isEnabled ? 'toggle-btn-on' : 'toggle-btn-off'}`}
                   >
                     {isEnabled ? '✓' : '○'}
                   </button>
-                  <span style={styles.navLabel}>{section.label}</span>
+                  <span className="nav-label">{section.label}</span>
                 </div>
 
                 {isEnabled && (
-                  <div style={styles.navControls}>
-                    <span style={styles.orderNum}>#{index + 1}</span>
-                    <button 
+                  <div className="nav-controls">
+                    <span className="order-num">#{index + 1}</span>
+                    <button
                       onClick={() => moveSection(index, 'up')}
                       disabled={index === 0}
-                      style={styles.moveBtn}
+                      className="move-btn"
                     >
                       ↑
                     </button>
-                    <button 
+                    <button
                       onClick={() => moveSection(index, 'down')}
                       disabled={index === navOrder.length - 1}
-                      style={styles.moveBtn}
+                      className="move-btn"
                     >
                       ↓
                     </button>
@@ -151,156 +144,13 @@ export default function PageBuilder() {
       </div>
 
       {/* Save Button */}
-      <button 
-        onClick={handleSave} 
+      <button
+        onClick={handleSave}
         disabled={saving}
-        style={{
-          ...styles.saveBtn,
-          opacity: saving ? 0.7 : 1,
-        }}
+        className="btn btn-primary btn-block"
       >
         {saving ? 'Saving...' : '💾 Save Changes'}
       </button>
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  title: {
-    fontSize: '24px',
-    fontWeight: 700,
-    margin: '0 0 8px 0',
-    color: 'var(--color-text, #e2e8f0)',
-  },
-  subtitle: {
-    fontSize: '14px',
-    color: 'var(--color-text-muted, #94a3b8)',
-    margin: '0 0 28px 0',
-  },
-  section: {
-    marginBottom: '28px',
-  },
-  sectionTitle: {
-    fontSize: '18px',
-    fontWeight: 600,
-    margin: '0 0 16px 0',
-    color: 'var(--color-text, #e2e8f0)',
-  },
-  formCard: {
-    padding: '20px',
-    background: 'var(--color-surface, #1e293b)',
-    borderRadius: '12px',
-    border: '1px solid var(--color-gray, #334155)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
-  },
-  field: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-  },
-  label: {
-    fontSize: '13px',
-    fontWeight: 500,
-    color: 'var(--color-text, #e2e8f0)',
-  },
-  input: {
-    padding: '10px 12px',
-    borderRadius: '8px',
-    border: '1px solid var(--color-gray, #334155)',
-    background: 'var(--color-background, #0f172a)',
-    color: 'var(--color-text, #e2e8f0)',
-    fontSize: '14px',
-    outline: 'none',
-  },
-  textarea: {
-    padding: '10px 12px',
-    borderRadius: '8px',
-    border: '1px solid var(--color-gray, #334155)',
-    background: 'var(--color-background, #0f172a)',
-    color: 'var(--color-text, #e2e8f0)',
-    fontSize: '14px',
-    outline: 'none',
-    resize: 'vertical',
-    fontFamily: 'inherit',
-  },
-  hint: {
-    fontSize: '13px',
-    color: 'var(--color-text-muted, #94a3b8)',
-    margin: '-8px 0 12px 0',
-  },
-  navList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-  },
-  navItem: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '14px 16px',
-    background: 'var(--color-surface, #1e293b)',
-    borderRadius: '10px',
-    border: '1px solid var(--color-gray, #334155)',
-    transition: 'all 0.15s',
-  },
-  navItemLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-  },
-  toggleBtn: {
-    width: '28px',
-    height: '28px',
-    borderRadius: '6px',
-    border: 'none',
-    color: '#fff',
-    fontSize: '14px',
-    fontWeight: 700,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navLabel: {
-    fontSize: '15px',
-    fontWeight: 500,
-    color: 'var(--color-text, #e2e8f0)',
-  },
-  navControls: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  orderNum: {
-    fontSize: '13px',
-    color: 'var(--color-text-muted, #94a3b8)',
-    fontWeight: 600,
-    minWidth: '30px',
-    textAlign: 'center',
-  },
-  moveBtn: {
-    width: '32px',
-    height: '32px',
-    borderRadius: '6px',
-    border: '1px solid var(--color-gray, #334155)',
-    background: 'var(--color-background, #0f172a)',
-    color: 'var(--color-text, #e2e8f0)',
-    fontSize: '16px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveBtn: {
-    padding: '14px 28px',
-    borderRadius: '10px',
-    border: 'none',
-    background: 'var(--color-primary, #3b82f6)',
-    color: '#fff',
-    fontSize: '15px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-};

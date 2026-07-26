@@ -4,7 +4,6 @@
 // This page now shows a reference of available content types and their fields
 // ============================================
 
-import React from 'react';
 import { useAdmin } from '../../layouts/AdminLayout';
 
 const CONTENT_TYPES = [
@@ -57,34 +56,34 @@ export default function ContentTypeBuilder() {
 
   return (
     <div>
-      <h1 style={styles.title}>🏗️ Content Types</h1>
-      <p style={styles.subtitle}>
-        Portfolio ID: <code style={styles.code}>{portfolioId}</code>
+      <h1 className="inbox-title">🏗️ Content Types</h1>
+      <p className="inbox-subtitle">
+        Portfolio ID: <code className="inline-code">{portfolioId}</code>
       </p>
-      <p style={styles.desc}>
+      <p className="page-desc">
         Your portfolio uses typed tables in Supabase. Each content type below corresponds to a database table.
         Click on any type to manage its content.
       </p>
 
-      <div style={styles.grid}>
+      <div className="content-types-grid">
         {CONTENT_TYPES.map((type) => (
-          <div key={type.name} style={styles.card}>
-            <div style={styles.cardHeader}>
-              <span style={styles.icon}>{type.icon}</span>
-              <h3 style={styles.cardTitle}>{type.label}</h3>
+          <div key={type.name} className="content-ref-card">
+            <div className="ref-card-header">
+              <span className="ref-icon">{type.icon}</span>
+              <h3 className="ref-card-title">{type.label}</h3>
             </div>
-            <p style={styles.cardDesc}>{type.description}</p>
-            <div style={styles.fields}>
-              <span style={styles.fieldsLabel}>Fields:</span>
-              <div style={styles.fieldTags}>
+            <p className="ref-card-desc">{type.description}</p>
+            <div className="ref-fields">
+              <span className="ref-fields-label">Fields:</span>
+              <div className="ref-field-tags">
                 {type.fields.map(f => (
-                  <span key={f} style={styles.fieldTag}>{f}</span>
+                  <span key={f} className="ref-field-tag">{f}</span>
                 ))}
               </div>
             </div>
-            <a 
+            <a
               href={`/admin/${portfolioId}/${type.name === 'project' ? 'projects' : type.name === 'skill' ? 'skills' : type.name}`}
-              style={styles.link}
+              className="ref-link"
             >
               Manage {type.label} →
             </a>
@@ -94,92 +93,3 @@ export default function ContentTypeBuilder() {
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  title: {
-    fontSize: '24px',
-    fontWeight: 700,
-    margin: '0 0 8px 0',
-    color: 'var(--color-text, #e2e8f0)',
-  },
-  subtitle: {
-    fontSize: '13px',
-    color: 'var(--color-text-muted, #94a3b8)',
-    margin: '0 0 8px 0',
-  },
-  code: {
-    fontFamily: 'monospace',
-    background: 'var(--color-surface, #1e293b)',
-    padding: '2px 6px',
-    borderRadius: '4px',
-  },
-  desc: {
-    fontSize: '14px',
-    color: 'var(--color-text-muted, #94a3b8)',
-    margin: '0 0 24px 0',
-    lineHeight: 1.6,
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-    gap: '16px',
-  },
-  card: {
-    padding: '20px',
-    background: 'var(--color-surface, #1e293b)',
-    borderRadius: '12px',
-    border: '1px solid var(--color-gray, #334155)',
-  },
-  cardHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    marginBottom: '10px',
-  },
-  icon: {
-    fontSize: '24px',
-  },
-  cardTitle: {
-    fontSize: '17px',
-    fontWeight: 600,
-    margin: 0,
-    color: 'var(--color-text, #e2e8f0)',
-  },
-  cardDesc: {
-    fontSize: '13px',
-    color: 'var(--color-text-muted, #94a3b8)',
-    margin: '0 0 14px 0',
-    lineHeight: 1.5,
-  },
-  fields: {
-    marginBottom: '14px',
-  },
-  fieldsLabel: {
-    fontSize: '12px',
-    fontWeight: 600,
-    color: 'var(--color-text-muted, #94a3b8)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-    display: 'block',
-    marginBottom: '6px',
-  },
-  fieldTags: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '6px',
-  },
-  fieldTag: {
-    padding: '3px 8px',
-    borderRadius: '6px',
-    background: 'rgba(59,130,246,0.1)',
-    color: 'var(--color-primary, #3b82f6)',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-  },
-  link: {
-    color: 'var(--color-primary, #3b82f6)',
-    textDecoration: 'none',
-    fontSize: '14px',
-    fontWeight: 500,
-  },
-};
