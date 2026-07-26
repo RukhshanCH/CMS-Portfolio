@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { useAdmin } from '../../layouts/AdminLayout';
 
 export default function AdminDashboard() {
-  const { portfolio, data, theme, members, invitations, portfolioId } = useAdmin();
+  const { portfolio, data, members, invitations, portfolioId } = useAdmin();
 
   // Guard: if context is still settling, show nothing (AdminLayout handles loading)
   if (!portfolio) {
@@ -32,12 +32,6 @@ export default function AdminDashboard() {
       value: data?.skills?.length ?? 0,
       icon: '⭐',
       path: 'skills',
-    },
-    {
-      label: 'Themes',
-      value: theme?.length ?? 0,
-      icon: '⭐',
-      path: 'theme',
     },
     {
       label: 'Team Members',

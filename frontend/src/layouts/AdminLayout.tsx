@@ -37,7 +37,7 @@ interface AdminContextType {
   portfolioId: string;
   portfolio: Portfolio | null;
   data: PortfolioData | null;
-  theme: Theme[];
+  theme: Theme | null;
   members: PortfolioMember[];
   invitations: Invitation[];
   loading: boolean;

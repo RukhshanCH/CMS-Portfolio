@@ -201,7 +201,7 @@ export interface ContactSubmission {
 
 export interface PortfolioData {
   portfolio: Portfolio | null;
-  theme: Theme[];
+  theme: Theme | null;
   hero: Hero | null;
   about: About | null;
   skills: Skill[];
@@ -917,7 +917,7 @@ export async function fetchAllPortfolioData(portfolioId: string): Promise<Portfo
     { data: settings },
   ] = await Promise.all([
     supabase.from('portfolios').select('*').eq('id', portfolioId).single(),
-    supabase.from('themes').select('*').eq('portfolio_id', portfolioId),
+    supabase.from('themes').select('*').eq('portfolio_id', portfolioId).eq('is_active', true).single(),
     supabase.from('hero').select('*').eq('portfolio_id', portfolioId).eq('is_active', true).single(),
     supabase.from('about').select('*').eq('portfolio_id', portfolioId).eq('is_active', true).single(),
     supabase.from('skills').select('*').eq('portfolio_id', portfolioId).eq('is_active', true).order('created_at', { ascending: true }),
@@ -928,7 +928,7 @@ export async function fetchAllPortfolioData(portfolioId: string): Promise<Portfo
 
   return {
     portfolio,
-    theme: theme || [],
+    theme,
     hero,
     about,
     skills: skills || [],
