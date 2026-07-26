@@ -164,11 +164,8 @@ const CONTENT_CONFIG: Record<string, ContentConfig> = {
     deleteData: deleteSkill,
     fields: [
       { name: 'name', label: 'Skill Name', type: 'text', required: true },
-      { name: 'category', label: 'Category', type: 'text' },
-      { name: 'proficiency', label: 'Proficiency (0-100)', type: 'number' },
-      { name: 'icon', label: 'Icon', type: 'text' },
-      { name: 'color', label: 'Color', type: 'color' },
-      { name: 'display_order', label: 'Display Order', type: 'number' },
+      { name: 'level', label: 'Level (e.g. Beginner, Intermediate, Advanced)', type: 'text' },
+      { name: 'percentage', label: 'Proficiency % (0-100)', type: 'number' },
       { name: 'is_active', label: 'Active', type: 'checkbox' },
     ],
   },

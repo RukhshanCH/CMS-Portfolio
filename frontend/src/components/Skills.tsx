@@ -57,7 +57,7 @@ export default function Skills({ items = [] }: SkillsProps) {
               // Support both `name` (Supabase) and `title` (legacy)
               const name = String(d.name || d.title || 'Skill');
               const level = String(d.level || 'Intermediate');
-              const percentage = Math.min(100, Math.max(0, Number(d.percentage || d.level || 75)));
+              const percentage = Math.min(100, Math.max(0, Number(d.percentage ?? d.level ?? 75)));
 
               return (
                 <div key={id} className="skill-item">

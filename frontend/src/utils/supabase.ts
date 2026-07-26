@@ -111,11 +111,10 @@ export interface Skill {
   portfolio_id: string;
   is_active: boolean;
   name: string;
-  category: string;
-  proficiency: number;
-  icon: string;
-  color: string;
-  display_order: number;
+  level: string;      // "Beginner" | "Intermediate" | "Advanced" | "Expert"
+  percentage: number; // 0–100
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Project {
@@ -639,8 +638,7 @@ export async function getSkills(portfolioId: string): Promise<Skill[]> {
     .from('skills')
     .select('*')
     .eq('portfolio_id', portfolioId)
-    .eq('is_active', true)
-    .order('display_order', { ascending: true });
+    .order('created_at', { ascending: true });
 
   if (error) {
     console.error('Error fetching skills:', error);
@@ -901,7 +899,7 @@ export async function fetchAllPortfolioData(portfolioId: string): Promise<Portfo
     supabase.from('themes').select('*').eq('portfolio_id', portfolioId).eq('is_active', true).single(),
     supabase.from('hero').select('*').eq('portfolio_id', portfolioId).eq('is_active', true).single(),
     supabase.from('about').select('*').eq('portfolio_id', portfolioId).eq('is_active', true).single(),
-    supabase.from('skills').select('*').eq('portfolio_id', portfolioId).eq('is_active', true).order('display_order'),
+    supabase.from('skills').select('*').eq('portfolio_id', portfolioId).eq('is_active', true).order('created_at', { ascending: true }),
     supabase.from('projects').select('*').eq('portfolio_id', portfolioId).eq('is_active', true).order('display_order'),
     supabase.from('contact').select('*').eq('portfolio_id', portfolioId).eq('is_active', true).single(),
     supabase.from('site_settings').select('*').eq('portfolio_id', portfolioId).single(),

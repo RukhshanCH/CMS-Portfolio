@@ -29,7 +29,6 @@ export default function Navbar() {
         .from('hero')
         .select('*')
         .eq('is_active', true)
-        .order('order_index')
         .single();
 
       if (error) {
