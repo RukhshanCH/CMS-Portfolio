@@ -684,7 +684,6 @@ export async function getProjects(portfolioId: string, options?: { featuredOnly?
     .from('projects')
     .select('*')
     .eq('portfolio_id', portfolioId)
-    .eq('is_active', true)
     .order('display_order', { ascending: true });
 
   if (options?.featuredOnly) query = query.eq('is_featured', true);

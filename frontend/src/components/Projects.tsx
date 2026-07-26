@@ -140,6 +140,10 @@ export default function Projects({ items = [] }: ProjectsProps) {
             const technologies = (d.technologies as string[]) || (d.tags as string[]) || [];
             const category = String(d.category || '');
             const isFeatured = Boolean(d.featured);
+            const status = String(d.status || '');
+            const statusLabel = status
+              ? status.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+              : '';
 
             // Images: support both `images` array and legacy `imageUrl` / `imageurl`
             let images: string[] = [];
@@ -220,6 +224,11 @@ export default function Projects({ items = [] }: ProjectsProps) {
                       </a>
                     )}
                   </div>
+                  {status && (
+                    <span className={`project-status-badge status-${status}`}>
+                      {statusLabel}
+                    </span>
+                  )}
                 </div>
               </article>
             );
