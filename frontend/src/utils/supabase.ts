@@ -74,8 +74,6 @@ export interface Theme {
   color_warning: string;
   color_danger: string;
   color_featured: string;
-  color_background: string;
-  color_surface: string;
 
   font_family: string;
   border_radius: number;

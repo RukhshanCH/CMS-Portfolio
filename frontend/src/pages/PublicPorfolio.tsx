@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getPublicPortfolio, getWhatsAppLink } from '../utils/supabase';
 import type { PortfolioData } from '../utils/supabase';
+import { applyThemeVariables } from '../context/ThemeContext';
 
 export default function PublicPortfolio() {
   const { slug } = useParams<{ slug: string }>();
@@ -23,27 +24,22 @@ export default function PublicPortfolio() {
     setLoading(true);
     setError(null);
 
-    const portfolioData = await getPublicPortfolio(slug);
-    if (!portfolioData) {
-      setError('Portfolio not found or not published.');
-    } else {
-      setData(portfolioData);
-      // Apply theme CSS variables
-      if (portfolioData.theme) {
-        const root = document.documentElement;
-        root.style.setProperty('--color-primary', portfolioData.theme.color_primary);
-        root.style.setProperty('--color-secondary', portfolioData.theme.color_secondary);
-        root.style.setProperty('--color-text', portfolioData.theme.color_text);
-        root.style.setProperty('--color-text-muted', portfolioData.theme.color_text_muted);
-        root.style.setProperty('--color-success', portfolioData.theme.color_success);
-        root.style.setProperty('--color-warning', portfolioData.theme.color_warning);
-        root.style.setProperty('--color-danger', portfolioData.theme.color_danger);
-        root.style.setProperty('--color-featured', portfolioData.theme.color_featured);
-        root.style.setProperty('--border-radius', `${portfolioData.theme.border_radius}px`);
-        root.style.setProperty('--max-width', `${portfolioData.theme.max_width}px`);
+    try {
+      const portfolioData = await getPublicPortfolio(slug);
+      if (!portfolioData) {
+        setError('Portfolio not found or not published.');
+      } else {
+        setData(portfolioData);
+        if (portfolioData.theme) {
+          applyThemeVariables(portfolioData.theme);
+        }
       }
+    } catch (err: any) {
+      console.error(err);
+      setError('Failed to load portfolio.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   if (loading) {
@@ -64,57 +60,83 @@ export default function PublicPortfolio() {
     );
   }
 
-  const { portfolio, theme, hero, about, skills, projects, contact, settings } = data;
+  const { portfolio, hero, about, skills, projects, contact, settings } = data;
+
+  // Derive skill percentage from level
+  const LEVEL_TO_PERCENTAGE: Record<string, number> = {
+    Beginner: 25,
+    Intermediate: 50,
+    Advanced: 75,
+    Expert: 100,
+  };
 
   return (
-    <div style={{
-      ...styles.container,
-      fontFamily: theme?.font_family || 'system-ui',
-      color: theme?.color_text || '#334155',
-    }}>
-      {/* Site Title */}
+    <div
+      style={{
+        ...styles.container,
+        fontFamily: 'var(--font-family, system-ui)',
+        color: 'var(--color-text, #334155)',
+        background: 'var(--color-background, #ffffff)',
+      }}
+    >
       <title>{settings?.site_title || portfolio?.title || 'Portfolio'}</title>
 
       {/* HERO SECTION */}
       {hero && (
-        <section style={styles.hero}>
+        <section
+          style={{
+            ...styles.hero,
+            backgroundImage: hero.background_image
+              ? `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url(${hero.background_image})`
+              : undefined,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        >
           <div style={styles.heroContent}>
             <p style={styles.greeting}>{hero.greeting || 'Hello, I am'}</p>
             <h1 style={styles.heroName}>{hero.name}</h1>
-            <h2 style={styles.heroHeadline}>{hero.headline}</h2>
-            <p style={styles.heroSub}>{hero.subheadline}</p>
-            {hero.cta_text && (
-              <a href={hero.cta_link || '#contact'} style={styles.ctaButton}>
-                {hero.cta_text}
-              </a>
+            <p style={styles.heroSub}>{hero.subtitle}</p>
+
+            {Array.isArray(hero.buttons) && hero.buttons.length > 0 && (
+              <div style={styles.heroButtons}>
+                {hero.buttons.map((btn: any, i: number) => (
+                  <a
+                    key={i}
+                    href={btn.link || '#'}
+                    style={{
+                      ...styles.ctaButton,
+                      ...(btn.variant === 'outline' && styles.ctaOutline),
+                    }}
+                  >
+                    {btn.text}
+                  </a>
+                ))}
+              </div>
             )}
           </div>
-          {hero.image_url && (
-            <img src={hero.image_url} alt={hero.name} style={styles.heroImage} />
-          )}
         </section>
       )}
 
       {/* ABOUT SECTION */}
       {about && (
         <section style={styles.section} id="about">
-          <h2 style={styles.sectionTitle}>{about.title || 'About Me'}</h2>
+          <h2 style={styles.sectionTitle}>{about.heading || 'About Me'}</h2>
           <div style={styles.aboutContent}>
             {about.image_url && (
-              <img src={about.image_url} alt="About" style={styles.aboutImage} />
+              <img
+                src={about.image_url}
+                alt="About"
+                style={styles.aboutImage}
+              />
             )}
             <div>
-              <p style={styles.aboutText}>{about.content}</p>
-              {about.details && about.details.length > 0 && (
-                <div style={styles.detailsGrid}>
-                  {about.details.map((detail, i) => (
-                    <div key={i} style={styles.detailItem}>
-                      <span style={styles.detailLabel}>{detail.label}</span>
-                      <span style={styles.detailValue}>{detail.value}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {about.bio &&
+                about.bio.split(/\n\n+/).map((para: string, i: number) => (
+                  <p key={i} style={styles.aboutText}>
+                    {para}
+                  </p>
+                ))}
             </div>
           </div>
         </section>
@@ -125,21 +147,24 @@ export default function PublicPortfolio() {
         <section style={styles.section} id="skills">
           <h2 style={styles.sectionTitle}>Skills</h2>
           <div style={styles.skillsGrid}>
-            {skills.map((skill) => (
-              <div key={skill.id} style={styles.skillCard}>
-                <span style={styles.skillName}>{skill.name}</span>
-                <div style={styles.skillBar}>
-                  <div 
-                    style={{
-                      ...styles.skillFill,
-                      width: `${skill.proficiency}%`,
-                      background: skill.color || 'var(--color-primary, #3b82f6)',
-                    }} 
-                  />
+            {skills.map((skill) => {
+              const pct =
+                LEVEL_TO_PERCENTAGE[skill.level as string] ?? 50;
+              return (
+                <div key={skill.id} style={styles.skillCard}>
+                  <span style={styles.skillName}>{skill.name}</span>
+                  <span style={styles.skillLevel}>{skill.level}</span>
+                  <div style={styles.skillBar}>
+                    <div
+                      style={{
+                        ...styles.skillFill,
+                        width: `${pct}%`,
+                      }}
+                    />
+                  </div>
                 </div>
-                <span style={styles.skillPercent}>{skill.proficiency}%</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
@@ -151,27 +176,50 @@ export default function PublicPortfolio() {
           <div style={styles.projectsGrid}>
             {projects.map((project) => (
               <div key={project.id} style={styles.projectCard}>
-                {project.thumbnail_url && (
-                  <img src={project.thumbnail_url} alt={project.title} style={styles.projectImage} />
-                )}
+                {(project.image_url ||
+                  (project.images && project.images[0])) && (
+                    <img
+                      src={project.image_url || project.images?.[0]}
+                      alt={project.title}
+                      style={styles.projectImage}
+                    />
+                  )}
                 <div style={styles.projectInfo}>
                   <h3 style={styles.projectTitle}>{project.title}</h3>
                   <p style={styles.projectDesc}>{project.description}</p>
-                  {project.tech_stack && project.tech_stack.length > 0 && (
-                    <div style={styles.techStack}>
-                      {project.tech_stack.map((tech, i) => (
-                        <span key={i} style={styles.techTag}>{tech}</span>
-                      ))}
-                    </div>
+                  {project.category && (
+                    <span style={styles.projectCategory}>
+                      {project.category}
+                    </span>
                   )}
+                  {Array.isArray(project.technologies) &&
+                    project.technologies.length > 0 && (
+                      <div style={styles.techStack}>
+                        {project.technologies.map((tech: string, i: number) => (
+                          <span key={i} style={styles.techTag}>
+                            {tech}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   <div style={styles.projectLinks}>
                     {project.live_url && (
-                      <a href={project.live_url} target="_blank" rel="noopener noreferrer" style={styles.link}>
+                      <a
+                        href={project.live_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={styles.link}
+                      >
                         Live Demo →
                       </a>
                     )}
-                    {project.repo_url && (
-                      <a href={project.repo_url} target="_blank" rel="noopener noreferrer" style={styles.link}>
+                    {project.github_url && (
+                      <a
+                        href={project.github_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={styles.link}
+                      >
                         GitHub →
                       </a>
                     )}
@@ -186,7 +234,11 @@ export default function PublicPortfolio() {
       {/* CONTACT SECTION */}
       {contact && (
         <section style={styles.section} id="contact">
-          <h2 style={styles.sectionTitle}>{contact.email ? 'Get In Touch' : 'Contact'}</h2>
+          <h2 style={styles.sectionTitle}>
+            {contact.heading || 'Get In Touch'}
+          </h2>
+          <p style={styles.contactSub}>{contact.description}</p>
+
           <div style={styles.contactGrid}>
             <div style={styles.contactInfo}>
               {contact.email && (
@@ -198,9 +250,55 @@ export default function PublicPortfolio() {
               {contact.location && (
                 <p style={styles.contactItem}>📍 {contact.location}</p>
               )}
+
+              {/* Social Links */}
+              {([
+                { url: contact.linkedin_url, label: 'LinkedIn' },
+                { url: contact.github_url, label: 'GitHub' },
+                { url: contact.twitter_url, label: 'Twitter' },
+                { url: contact.instagram_url, label: 'Instagram' },
+                { url: contact.facebook_url, label: 'Facebook' },
+                { url: contact.reddit_url, label: 'Reddit' },
+                { url: contact.youtube_url, label: 'YouTube' },
+                { url: contact.dribbble_url, label: 'Dribbble' },
+                { url: contact.behance_url, label: 'Behance' },
+              ].filter((s) => !!s.url) as { url: string; label: string }[]).length > 0 && (
+                  <div style={styles.socialLinks}>
+                    {(
+                      [
+                        { url: contact.linkedin_url, label: 'LinkedIn' },
+                        { url: contact.github_url, label: 'GitHub' },
+                        { url: contact.twitter_url, label: 'Twitter' },
+                        { url: contact.instagram_url, label: 'Instagram' },
+                        { url: contact.facebook_url, label: 'Facebook' },
+                        { url: contact.reddit_url, label: 'Reddit' },
+                        { url: contact.youtube_url, label: 'YouTube' },
+                        { url: contact.dribbble_url, label: 'Dribbble' },
+                        { url: contact.behance_url, label: 'Behance' },
+                      ].filter((s) => !!s.url) as {
+                        url: string;
+                        label: string;
+                      }[]
+                    ).map((s) => (
+                      <a
+                        key={s.label}
+                        href={s.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={styles.socialLink}
+                      >
+                        {s.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
+
               {contact.whatsapp_number && (
-                <a 
-                  href={getWhatsAppLink(contact.whatsapp_number, contact.whatsapp_default_message)}
+                <a
+                  href={getWhatsAppLink(
+                    contact.whatsapp_number,
+                    contact.whatsapp_message
+                  )}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={styles.whatsappBtn}
@@ -220,7 +318,8 @@ export default function PublicPortfolio() {
       {/* FOOTER */}
       <footer style={styles.footer}>
         <p style={styles.footerText}>
-          © {new Date().getFullYear()} {portfolio?.title}. Built with Portfolio CMS.
+          © {new Date().getFullYear()} {portfolio?.title}. Built with Portfolio
+          CMS.
         </p>
       </footer>
     </div>
@@ -229,7 +328,12 @@ export default function PublicPortfolio() {
 
 // Contact Form Component
 function ContactForm({ portfolioId }: { portfolioId: string }) {
-  const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    subject: '',
+    message: '',
+  });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -237,7 +341,13 @@ function ContactForm({ portfolioId }: { portfolioId: string }) {
     e.preventDefault();
     setSubmitting(true);
     const { submitContactForm } = await import('../utils/supabase');
-    await submitContactForm(portfolioId, formData.name, formData.email, formData.message, formData.subject);
+    await submitContactForm(
+      portfolioId,
+      formData.name,
+      formData.email,
+      formData.message,
+      formData.subject
+    );
     setSubmitting(false);
     setSubmitted(true);
     setFormData({ name: '', email: '', subject: '', message: '' });
@@ -256,7 +366,9 @@ function ContactForm({ portfolioId }: { portfolioId: string }) {
       <input
         placeholder="Your Name"
         value={formData.name}
-        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+        onChange={(e) =>
+          setFormData({ ...formData, name: e.target.value })
+        }
         required
         style={styles.formInput}
       />
@@ -264,25 +376,35 @@ function ContactForm({ portfolioId }: { portfolioId: string }) {
         type="email"
         placeholder="Your Email"
         value={formData.email}
-        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+        onChange={(e) =>
+          setFormData({ ...formData, email: e.target.value })
+        }
         required
         style={styles.formInput}
       />
       <input
         placeholder="Subject (optional)"
         value={formData.subject}
-        onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+        onChange={(e) =>
+          setFormData({ ...formData, subject: e.target.value })
+        }
         style={styles.formInput}
       />
       <textarea
         placeholder="Your Message"
         value={formData.message}
-        onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+        onChange={(e) =>
+          setFormData({ ...formData, message: e.target.value })
+        }
         required
         rows={5}
         style={{ ...styles.formInput, resize: 'vertical' }}
       />
-      <button type="submit" disabled={submitting} style={styles.submitButton}>
+      <button
+        type="submit"
+        disabled={submitting}
+        style={styles.submitButton}
+      >
         {submitting ? 'Sending...' : 'Send Message'}
       </button>
     </form>
@@ -303,7 +425,7 @@ const styles: Record<string, React.CSSProperties> = {
   errorTitle: {
     fontSize: '24px',
     fontWeight: 700,
-    color: '#ef4444',
+    color: 'var(--color-danger, #ef4444)',
     margin: '0 0 8px 0',
   },
   errorText: {
@@ -311,20 +433,23 @@ const styles: Record<string, React.CSSProperties> = {
   },
   container: {
     minHeight: '100vh',
-    maxWidth: '1200px',
+    maxWidth: 'var(--max-width, 1200px)',
     margin: '0 auto',
     padding: '0 24px',
   },
   hero: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     minHeight: '80vh',
     gap: '48px',
     padding: '60px 0',
+    borderRadius: 'var(--radius-lg, 16px)',
+    marginTop: '24px',
   },
   heroContent: {
     flex: 1,
+    textAlign: 'center',
   },
   greeting: {
     fontSize: '18px',
@@ -337,35 +462,37 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     margin: '0 0 16px 0',
     lineHeight: 1.1,
-  },
-  heroHeadline: {
-    fontSize: '28px',
-    fontWeight: 600,
-    color: 'var(--color-text-muted, #64748b)',
-    margin: '0 0 20px 0',
+    color: 'var(--color-text, #1e293b)',
   },
   heroSub: {
     fontSize: '17px',
     lineHeight: 1.7,
     color: 'var(--color-text-muted, #64748b)',
     margin: '0 0 32px 0',
-    maxWidth: '500px',
+    maxWidth: '600px',
+    marginLeft: 'auto',
+    marginRight: 'auto',
+  },
+  heroButtons: {
+    display: 'flex',
+    gap: '16px',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
   },
   ctaButton: {
     display: 'inline-block',
     padding: '14px 32px',
-    borderRadius: '12px',
+    borderRadius: 'var(--radius, 12px)',
     background: 'var(--color-primary, #3b82f6)',
     color: '#fff',
     textDecoration: 'none',
     fontSize: '16px',
     fontWeight: 600,
   },
-  heroImage: {
-    width: '380px',
-    height: '380px',
-    objectFit: 'cover',
-    borderRadius: '24px',
+  ctaOutline: {
+    background: 'transparent',
+    border: '2px solid var(--color-primary, #3b82f6)',
+    color: 'var(--color-primary, #3b82f6)',
   },
   section: {
     padding: '80px 0',
@@ -376,43 +503,26 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     margin: '0 0 40px 0',
     textAlign: 'center',
+    color: 'var(--color-text, #1e293b)',
   },
   aboutContent: {
     display: 'flex',
     gap: '48px',
     alignItems: 'flex-start',
+    flexWrap: 'wrap',
   },
   aboutImage: {
     width: '300px',
     height: '300px',
     objectFit: 'cover',
-    borderRadius: '20px',
+    borderRadius: 'var(--radius-lg, 16px)',
     flexShrink: 0,
   },
   aboutText: {
     fontSize: '16px',
     lineHeight: 1.8,
-    margin: '0 0 24px 0',
-  },
-  detailsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: '16px',
-  },
-  detailItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-  },
-  detailLabel: {
-    fontSize: '13px',
-    color: 'var(--color-text-muted, #64748b)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-  },
-  detailValue: {
-    fontSize: '15px',
-    fontWeight: 600,
+    margin: '0 0 16px 0',
+    color: 'var(--color-text, #334155)',
   },
   skillsGrid: {
     display: 'grid',
@@ -422,30 +532,34 @@ const styles: Record<string, React.CSSProperties> = {
   skillCard: {
     padding: '20px',
     background: 'var(--color-surface, #f8fafc)',
-    borderRadius: '12px',
+    borderRadius: 'var(--radius, 12px)',
     border: '1px solid var(--color-gray, #e2e8f0)',
   },
   skillName: {
     fontSize: '15px',
     fontWeight: 600,
+    marginBottom: '4px',
+    display: 'block',
+    color: 'var(--color-text, #1e293b)',
+  },
+  skillLevel: {
+    fontSize: '13px',
+    color: 'var(--color-text-muted, #64748b)',
     marginBottom: '12px',
     display: 'block',
+    textTransform: 'capitalize',
   },
   skillBar: {
     height: '8px',
     background: 'var(--color-gray, #e2e8f0)',
     borderRadius: '4px',
     overflow: 'hidden',
-    marginBottom: '8px',
   },
   skillFill: {
     height: '100%',
     borderRadius: '4px',
+    background: 'var(--color-primary, #3b82f6)',
     transition: 'width 1s ease',
-  },
-  skillPercent: {
-    fontSize: '13px',
-    color: 'var(--color-text-muted, #64748b)',
   },
   projectsGrid: {
     display: 'grid',
@@ -454,7 +568,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   projectCard: {
     background: 'var(--color-surface, #f8fafc)',
-    borderRadius: '16px',
+    borderRadius: 'var(--radius-lg, 16px)',
     overflow: 'hidden',
     border: '1px solid var(--color-gray, #e2e8f0)',
   },
@@ -470,12 +584,23 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '18px',
     fontWeight: 700,
     margin: '0 0 8px 0',
+    color: 'var(--color-text, #1e293b)',
   },
   projectDesc: {
     fontSize: '14px',
     lineHeight: 1.6,
     color: 'var(--color-text-muted, #64748b)',
-    margin: '0 0 16px 0',
+    margin: '0 0 12px 0',
+  },
+  projectCategory: {
+    display: 'inline-block',
+    padding: '4px 10px',
+    borderRadius: '6px',
+    background: 'var(--color-accent-soft, #a6ffc5)',
+    color: 'var(--color-text, #1e293b)',
+    fontSize: '12px',
+    fontWeight: 600,
+    marginBottom: '12px',
   },
   techStack: {
     display: 'flex',
@@ -501,6 +626,12 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '14px',
     fontWeight: 500,
   },
+  contactSub: {
+    textAlign: 'center',
+    color: 'var(--color-text-muted, #64748b)',
+    margin: '-24px 0 40px 0',
+    fontSize: '16px',
+  },
   contactGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
@@ -516,6 +647,23 @@ const styles: Record<string, React.CSSProperties> = {
   contactItem: {
     fontSize: '16px',
     margin: 0,
+    color: 'var(--color-text, #334155)',
+  },
+  socialLinks: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '12px',
+    marginTop: '8px',
+  },
+  socialLink: {
+    padding: '8px 14px',
+    borderRadius: '8px',
+    background: 'var(--color-surface, #f8fafc)',
+    border: '1px solid var(--color-gray, #e2e8f0)',
+    color: 'var(--color-text, #334155)',
+    textDecoration: 'none',
+    fontSize: '13px',
+    fontWeight: 500,
   },
   whatsappBtn: {
     display: 'inline-block',
@@ -540,6 +688,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'var(--color-surface, #f8fafc)',
     fontSize: '15px',
     outline: 'none',
+    color: 'var(--color-text, #334155)',
   },
   submitButton: {
     padding: '14px',
@@ -554,9 +703,9 @@ const styles: Record<string, React.CSSProperties> = {
   successMessage: {
     padding: '40px',
     textAlign: 'center',
-    background: 'rgba(34,197,94,0.1)',
+    background: 'var(--success-bg, rgba(34,197,94,0.1))',
     borderRadius: '12px',
-    color: '#22c55e',
+    color: 'var(--success-text, #22c55e)',
     fontSize: '16px',
     fontWeight: 500,
   },

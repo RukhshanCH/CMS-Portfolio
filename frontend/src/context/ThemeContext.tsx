@@ -10,17 +10,6 @@ export function applyThemeVariables(theme: Theme | null) {
     const root = document.documentElement;
     const isDark = !!theme.dark_mode;
 
-    // ─── Explicit Background / Surface ───
-    const backgroundColor =
-        theme.color_background ||
-        (isDark ? theme.color_dark || '#0f172a' : theme.color_light || '#ffffff');
-    const surfaceColor =
-        theme.color_surface ||
-        (isDark ? '#1e293b' : theme.color_light || '#f8fafc');
-
-    root.style.setProperty('--color-background', backgroundColor);
-    root.style.setProperty('--color-surface', surfaceColor);
-
     // ─── Core Colors ───
     root.style.setProperty('--primary', theme.color_primary);
     root.style.setProperty('--color-primary', theme.color_primary);

@@ -13,11 +13,11 @@ import {
 } from 'react-router-dom';
 import { useState, useEffect, createContext, useContext } from 'react';
 import { supabase } from './utils/supabase';
-import type { PortfolioData } from './utils/supabase';
-import { getPublicPortfolio, getSession } from './utils/supabase';
+import type { Theme } from './utils/supabase';
+import { getSession } from './utils/supabase';
 
 // ─── THEME (centralized) ───
-import { ThemeProvider, applyThemeVariables } from './context/ThemeContext';
+import { ThemeProvider, applyThemeVariables, useTheme } from './context/ThemeContext';
 
 // ─── COMPONENTS ───
 import Navbar from './components/Navbar';
@@ -43,6 +43,7 @@ import MembersPage from './admin/MembersPage';
 import InboxPage from './admin/InboxPage';
 
 import './App.css';
+import PublicPortfolio from './pages/PublicPorfolio';
 
 // ─── PORTFOLIO CONTEXT ───
 
@@ -102,84 +103,6 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   }
 
   return <>{children}</>;
-}
-
-// ─── PUBLIC PORTFOLIO VIEWER ───
-
-function PublicPortfolioViewer() {
-  const { slug } = useParams<{ slug: string }>();
-  const [data, setData] = useState<PortfolioData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadPortfolio();
-  }, [slug]);
-
-  async function loadPortfolio() {
-    if (!slug) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const portfolioData = await getPublicPortfolio(slug);
-      if (!portfolioData) {
-        setError('Portfolio not found or not published.');
-      } else {
-        setData(portfolioData);
-        if (portfolioData.theme) {
-          applyThemeVariables(portfolioData.theme);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      setError('Failed to load portfolio.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (loading) return <Loader fullPage />;
-  if (error || !data) {
-    return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 16,
-          background: 'var(--color-background, #0f172a)',
-          color: 'var(--color-text, #e2e8f0)',
-        }}
-      >
-        <h2 style={{ color: 'var(--color-danger, #ef4444)' }}>Portfolio Not Found</h2>
-        <p style={{ color: 'var(--color-text-muted, #94a3b8)' }}>{error}</p>
-      </div>
-    );
-  }
-
-  const { theme, hero, about, skills, projects, contact } = data;
-  const title = theme?.name || data.portfolio?.title || 'Portfolio';
-
-  return (
-    <div className="app" style={{ fontFamily: 'var(--font-family)' }}>
-      <title>{title}</title>
-      <Navbar />
-      <main>
-        <Hero data={hero as any} />
-        <About data={about as any} />
-        <Projects items={projects as any} />
-        <Skills items={skills as any} />
-        <Contact data={contact as any} />
-      </main>
-      <footer className="footer">
-        <p>
-          © {new Date().getFullYear()} {title}. Built with Portfolio CMS.
-        </p>
-      </footer>
-    </div>
-  );
 }
 
 // ─── HOME PAGE (Default Portfolio) ───
@@ -317,7 +240,21 @@ function HomePage() {
 
 function AdminRoutes() {
   const { portfolioId } = useParams<{ portfolioId: string }>();
+  const { applyTheme } = useTheme();
   const location = useLocation();
+
+  useEffect(() => {
+    if (!portfolioId) return;
+    supabase
+      .from('themes')
+      .select('*')
+      .eq('portfolio_id', portfolioId)
+      .eq('is_active', true)
+      .single()
+      .then(({ data }) => {
+        if (data) applyTheme(data as Theme);
+      });
+  }, [portfolioId, applyTheme]);
 
   // Redirect /admin/:id to /admin/:id/dashboard
   if (location.pathname === `/admin/${portfolioId}`) {
@@ -359,7 +296,7 @@ export default function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
-          <Route path="/portfolio/:slug" element={<PublicPortfolioViewer />} />
+          <Route path="/portfolio/:slug" element={<PublicPortfolio />} />
           <Route path="/invite/:token" element={<InvitePage />} />
 
           {/* Auth */}
