@@ -1,76 +1,122 @@
 import { useTheme } from '../../context/ThemeContext';
+import type { Theme } from '../../utils/supabase';
 
 interface ThemePreviewProps {
-  previewData?: Record<string, unknown>; // Optional: preview specific theme data
+  previewData?: Partial<Theme>; // Optional: preview specific theme data
 }
 
 export default function ThemePreview({ previewData }: ThemePreviewProps) {
-  const { theme: activeTheme } = useTheme();
-  
-  // Use preview data if provided, otherwise fall back to active theme
-  const theme = previewData 
-    ? { ...activeTheme, ...previewData } as typeof activeTheme
-    : activeTheme;
+  const { theme: activeTheme, loading } = useTheme();
+
+  if (loading) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-light)' }}>
+        Loading preview...
+      </div>
+    );
+  }
+
+  if (!activeTheme) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--danger)' }}>
+        No theme loaded.
+      </div>
+    );
+  }
+
+  // Merge preview overrides on top of active theme
+  const theme = previewData ? { ...activeTheme, ...previewData } : activeTheme;
+
+  const isDark = !!theme.dark_mode;
+  const bgColor = theme.color_background || (isDark ? theme.color_dark || '#0f172a' : theme.color_light || '#ffffff');
+  const surfaceColor = theme.color_surface || (isDark ? '#1e293b' : theme.color_light || '#f8fafc');
 
   return (
-    <div 
-      className="theme-preview" 
-      style={{ 
-        marginTop: '1.5rem', 
-        padding: '2rem', 
-        borderRadius: '12px', 
+    <div
+      className="theme-preview"
+      style={{
+        marginTop: '1.5rem',
+        padding: '2rem',
+        borderRadius: '12px',
         border: '2px solid var(--gray)',
-        background: theme.darkMode ? '#0f172a' : theme.light,
-        transition: 'all 0.3s ease'
+        background: bgColor,
+        color: isDark ? theme.color_light || '#e2e8f0' : theme.color_text || '#334155',
+        transition: 'all 0.3s ease',
       }}
     >
-      <h4 style={{ marginBottom: '1.5rem', color: theme.darkMode ? '#f8fafc' : theme.dark }}>
+      <h4
+        style={{
+          marginBottom: '1.5rem',
+          color: isDark ? theme.color_light || '#f8fafc' : theme.color_dark || '#1e1b4b',
+        }}
+      >
         🎨 {previewData ? 'Preview (Unsaved)' : 'Live Preview (Active Theme)'}
       </h4>
-      
+
       {/* Color Palette */}
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <ColorSwatch color={theme.primary} label="Primary" textColor="white" />
-        <ColorSwatch color={theme.primaryDark} label="Primary Dark" textColor="white" />
-        <ColorSwatch color={theme.secondary} label="Secondary" textColor="white" />
-        <ColorSwatch color={theme.accent} label="Accent" textColor={theme.dark} />
-        <ColorSwatch color={theme.dark} label="Dark" textColor="white" />
-        <ColorSwatch color={theme.light} label="Light" textColor={theme.dark} border />
-        <ColorSwatch color={theme.gray} label="Gray" textColor={theme.dark} />
-        <ColorSwatch color={theme.grayWarm} label="Gray Warm" textColor={theme.dark} />
-        <ColorSwatch color={theme.text} label="Text" textColor="white" />
-        <ColorSwatch color={theme.textLight} label="Text Light" textColor="white" />
+        <ColorSwatch color={theme.color_primary} label="Primary" textColor="white" />
+        <ColorSwatch color={theme.color_primary} label="Primary Dark" textColor="white" />
+        <ColorSwatch color={theme.color_secondary} label="Secondary" textColor="white" />
+        <ColorSwatch
+          color={theme.color_accent || theme.color_secondary}
+          label="Accent"
+          textColor={theme.color_dark || '#1e1b4b'}
+        />
+        <ColorSwatch color={theme.color_dark || '#1e1b4b'} label="Dark" textColor="white" />
+        <ColorSwatch
+          color={theme.color_light || '#ffffff'}
+          label="Light"
+          textColor={theme.color_dark || '#1e1b4b'}
+          border
+        />
+        <ColorSwatch color={theme.color_gray || '#e2e8f0'} label="Gray" textColor={theme.color_dark || '#1e1b4b'} />
+        <ColorSwatch
+          color={theme.color_gray_warm || '#f1f5f9'}
+          label="Gray Warm"
+          textColor={theme.color_dark || '#1e1b4b'}
+        />
+        <ColorSwatch color={theme.color_text || '#334155'} label="Text" textColor="white" />
+        <ColorSwatch
+          color={theme.color_text_muted || '#64748b'}
+          label="Text Muted"
+          textColor="white"
+        />
       </div>
 
       {/* Sample Buttons */}
       <div style={{ marginBottom: '1.5rem' }}>
-        <button 
+        <button
           style={{
-            background: theme.buttonStyle === 'gradient' 
-              ? `linear-gradient(${theme.gradientDirection}, ${theme.primary}, ${theme.secondary})`
-              : theme.primary,
+            background:
+              theme.button_style === 'gradient'
+                ? `linear-gradient(${theme.gradient_direction || '135deg'}, ${theme.color_primary}, ${theme.color_secondary})`
+                : theme.color_primary,
             color: 'white',
-            borderRadius: `${theme.radius}px`,
+            borderRadius: `${theme.border_radius || 12}px`,
             padding: '0.75rem 1.5rem',
             border: 'none',
             fontWeight: 600,
             marginRight: '0.75rem',
             cursor: 'pointer',
-            boxShadow: theme.buttonStyle === 'gradient' ? `0 4px 14px ${theme.primary}66` : 'none'
+            boxShadow:
+              theme.button_style === 'gradient'
+                ? `0 4px 14px ${theme.color_primary}66`
+                : 'none',
           }}
         >
           Primary Button
         </button>
-        
-        <button 
+
+        <button
           style={{
             background: 'transparent',
-            color: theme.dark,
-            borderRadius: `${theme.radius}px`,
+            color: isDark ? theme.color_light || '#f8fafc' : theme.color_dark || '#1e1b4b',
+            borderRadius: `${theme.border_radius || 12}px`,
             padding: '0.75rem 1.5rem',
-            border: `2px solid ${theme.accentSoft}`,
+            border: `2px solid ${theme.color_accent_soft || '#e2e8f0'}`,
             fontWeight: 600,
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
         >
           Secondary Button
@@ -78,46 +124,65 @@ export default function ThemePreview({ previewData }: ThemePreviewProps) {
       </div>
 
       {/* Sample Card */}
-      <div 
+      <div
         style={{
-          background: theme.cardStyle === 'glass' 
-            ? 'rgba(255,255,255,0.1)' 
-            : theme.cardStyle === 'sharp' 
-              ? theme.grayWarm 
-              : 'white',
-          backdropFilter: theme.cardStyle === 'glass' ? 'blur(10px)' : 'none',
-          borderRadius: theme.cardStyle === 'sharp' ? '0px' : `${theme.radius}px`,
+          background:
+            theme.card_style === 'glass'
+              ? isDark
+                ? 'rgba(255,255,255,0.05)'
+                : 'rgba(255,255,255,0.8)'
+              : theme.card_style === 'sharp'
+                ? surfaceColor
+                : theme.color_light || '#ffffff',
+          backdropFilter: theme.card_style === 'glass' ? 'blur(10px)' : 'none',
+          borderRadius: theme.card_style === 'sharp' ? '0px' : `${theme.border_radius || 12}px`,
           padding: '1.5rem',
-          border: `1px solid ${theme.accentSoft}`,
-          boxShadow: `0 4px 6px -1px ${theme.primary}1a`,
-          maxWidth: '400px'
+          border: `1px solid ${theme.color_accent_soft || '#e2e8f0'}`,
+          boxShadow: `0 4px 6px -1px ${theme.color_primary}1a`,
+          maxWidth: '400px',
         }}
       >
-        <h5 style={{ color: theme.dark, marginBottom: '0.5rem', fontSize: '1.1rem' }}>
+        <h5
+          style={{
+            color: isDark ? theme.color_light || '#f8fafc' : theme.color_dark || '#1e1b4b',
+            marginBottom: '0.5rem',
+            fontSize: '1.1rem',
+          }}
+        >
           Sample Card
         </h5>
-        <p style={{ color: theme.textLight, fontSize: '0.9rem', marginBottom: '1rem' }}>
+        <p
+          style={{
+            color: theme.color_text_muted || '#64748b',
+            fontSize: '0.9rem',
+            marginBottom: '1rem',
+          }}
+        >
           This is how your cards will look with the current theme settings.
         </p>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <span style={{ 
-            padding: '0.25rem 0.75rem', 
-            background: theme.accentBg, 
-            color: theme.secondary,
-            borderRadius: '999px',
-            fontSize: '0.8rem',
-            fontWeight: 600
-          }}>
+          <span
+            style={{
+              padding: '0.25rem 0.75rem',
+              background: theme.color_accent_bg || '#f0fdf4',
+              color: theme.color_secondary,
+              borderRadius: '999px',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+            }}
+          >
             Tag 1
           </span>
-          <span style={{ 
-            padding: '0.25rem 0.75rem', 
-            background: theme.accentBg, 
-            color: theme.secondary,
-            borderRadius: '999px',
-            fontSize: '0.8rem',
-            fontWeight: 600
-          }}>
+          <span
+            style={{
+              padding: '0.25rem 0.75rem',
+              background: theme.color_accent_bg || '#f0fdf4',
+              color: theme.color_secondary,
+              borderRadius: '999px',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+            }}
+          >
             Tag 2
           </span>
         </div>
@@ -125,56 +190,85 @@ export default function ThemePreview({ previewData }: ThemePreviewProps) {
 
       {/* Typography Preview */}
       <div style={{ marginTop: '1.5rem' }}>
-        <h1 style={{ 
-          color: theme.dark, 
-          fontSize: '2rem', 
-          fontWeight: 800,
-          marginBottom: '0.5rem',
-          fontFamily: theme.fontFamily === 'system' ? undefined : theme.fontFamily
-        }}>
+        <h1
+          style={{
+            color: isDark ? theme.color_light || '#f8fafc' : theme.color_dark || '#1e1b4b',
+            fontSize: '2rem',
+            fontWeight: 800,
+            marginBottom: '0.5rem',
+            fontFamily:
+              theme.font_family === 'system' || !theme.font_family
+                ? undefined
+                : `'${theme.font_family}', sans-serif`,
+          }}
+        >
           Heading 1
         </h1>
-        <h2 style={{ 
-          color: theme.dark, 
-          fontSize: '1.5rem', 
-          fontWeight: 700,
-          marginBottom: '0.5rem' 
-        }}>
+        <h2
+          style={{
+            color: isDark ? theme.color_light || '#f8fafc' : theme.color_dark || '#1e1b4b',
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            marginBottom: '0.5rem',
+          }}
+        >
           Heading 2
         </h2>
-        <p style={{ color: theme.text, lineHeight: 1.6 }}>
-          Body text color: <code style={{ background: theme.grayWarm, padding: '0.1rem 0.3rem', borderRadius: '4px' }}>{theme.text}</code>
+        <p style={{ color: theme.color_text || '#334155', lineHeight: 1.6 }}>
+          Body text color:{` `}
+          <code
+            style={{
+              background: theme.color_gray_warm || '#f1f5f9',
+              padding: '0.1rem 0.3rem',
+              borderRadius: '4px',
+            }}
+          >
+            {theme.color_text || '#334155'}
+          </code>
         </p>
-        <p style={{ color: theme.textLight, fontSize: '0.9rem' }}>
-          Muted text color: <code style={{ background: theme.grayWarm, padding: '0.1rem 0.3rem', borderRadius: '4px' }}>{theme.textLight}</code>
+        <p style={{ color: theme.color_text_muted || '#64748b', fontSize: '0.9rem' }}>
+          Muted text color:{` `}
+          <code
+            style={{
+              background: theme.color_gray_warm || '#f1f5f9',
+              padding: '0.1rem 0.3rem',
+              borderRadius: '4px',
+            }}
+          >
+            {theme.color_text_muted || '#64748b'}
+          </code>
         </p>
       </div>
 
-      {theme.darkMode && (
-        <div style={{ 
-          marginTop: '1rem', 
-          padding: '0.75rem', 
-          background: '#334155', 
-          color: '#f8fafc',
-          borderRadius: '8px',
-          fontSize: '0.85rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem'
-        }}>
+      {theme.dark_mode && (
+        <div
+          style={{
+            marginTop: '1rem',
+            padding: '0.75rem',
+            background: '#334155',
+            color: '#f8fafc',
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
           🌙 Dark mode is enabled
         </div>
       )}
 
-      {!theme.enableAnimations && (
-        <div style={{ 
-          marginTop: '0.5rem', 
-          padding: '0.75rem', 
-          background: theme.grayWarm, 
-          color: theme.text,
-          borderRadius: '8px',
-          fontSize: '0.85rem'
-        }}>
+      {theme.enable_animations === false && (
+        <div
+          style={{
+            marginTop: '0.5rem',
+            padding: '0.75rem',
+            background: theme.color_gray_warm || '#f1f5f9',
+            color: theme.color_text || '#334155',
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+          }}
+        >
           ⚡ Animations are disabled
         </div>
       )}
@@ -182,19 +276,24 @@ export default function ThemePreview({ previewData }: ThemePreviewProps) {
   );
 }
 
-function ColorSwatch({ color, label, textColor, border }: { 
-  color: string; 
-  label: string; 
+function ColorSwatch({
+  color,
+  label,
+  textColor,
+  border,
+}: {
+  color: string;
+  label: string;
   textColor: string;
   border?: boolean;
 }) {
   return (
     <div style={{ textAlign: 'center' }}>
-      <div 
-        style={{ 
-          width: 50, 
-          height: 50, 
-          borderRadius: '10px', 
+      <div
+        style={{
+          width: 50,
+          height: 50,
+          borderRadius: '10px',
           background: color,
           color: textColor,
           display: 'flex',
@@ -204,12 +303,14 @@ function ColorSwatch({ color, label, textColor, border }: {
           fontWeight: 700,
           marginBottom: '0.35rem',
           border: border ? '2px solid var(--gray)' : 'none',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
         }}
       >
         {color}
       </div>
-      <span style={{ fontSize: '0.7rem', color: 'var(--text-light)', fontWeight: 500 }}>
+      <span
+        style={{ fontSize: '0.7rem', color: 'var(--text-light)', fontWeight: 500 }}
+      >
         {label}
       </span>
     </div>

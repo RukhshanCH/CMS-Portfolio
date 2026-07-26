@@ -29,6 +29,9 @@ import {
   deleteSkill,
 } from '../../utils/supabase';
 
+import ThemePreview from './ThemePreview';
+import GenericContentPreview from './GenericContentPreview';
+
 // ─── Types ───
 
 interface ContentField {
@@ -41,6 +44,7 @@ interface ContentField {
 }
 
 interface ContentConfig {
+  name: string;
   title: string;
   table: string;
   getData: (portfolioId: string) => Promise<any>;
@@ -54,6 +58,7 @@ interface ContentConfig {
 
 const CONTENT_CONFIG: Record<string, ContentConfig> = {
   theme: {
+    name: 'theme',
     title: 'Themes',
     table: 'themes',
     getData: getAllThemes,
@@ -94,6 +99,7 @@ const CONTENT_CONFIG: Record<string, ContentConfig> = {
     ],
   },
   hero: {
+    name: 'hero',
     title: 'Hero Section',
     table: 'hero',
     getData: getHero,
@@ -116,6 +122,7 @@ const CONTENT_CONFIG: Record<string, ContentConfig> = {
     ],
   },
   about: {
+    name: 'about',
     title: 'About Section',
     table: 'about',
     getData: getAbout,
@@ -129,6 +136,7 @@ const CONTENT_CONFIG: Record<string, ContentConfig> = {
     ],
   },
   project: {
+    name: 'projects',
     title: 'Projects',
     table: 'projects',
     getData: getProjects,
@@ -168,6 +176,7 @@ const CONTENT_CONFIG: Record<string, ContentConfig> = {
     ],
   },
   skill: {
+    name: 'skill',
     title: 'Skills',
     table: 'skills',
     getData: getSkills,
@@ -186,6 +195,7 @@ const CONTENT_CONFIG: Record<string, ContentConfig> = {
     ],
   },
   contact: {
+    name: 'contact',
     title: 'Contact',
     table: 'contact',
     getData: getContact,
@@ -213,6 +223,7 @@ const CONTENT_CONFIG: Record<string, ContentConfig> = {
     ],
   },
   settings: {
+    name: 'settings',
     title: 'Site Settings',
     table: 'site_settings',
     getData: getSiteSettings,
@@ -228,9 +239,14 @@ const CONTENT_CONFIG: Record<string, ContentConfig> = {
 };
 
 // ─── Component ───
-
 interface ContentManagerProps {
   defaultTypeName?: string;
+}
+
+interface PreviewState {
+  isOpen: boolean;
+  item: Record<string, unknown> | null;
+  contentType: string; // 'theme' | 'project' | 'hero' | etc.
 }
 
 export default function ContentManager({ defaultTypeName }: ContentManagerProps) {
@@ -247,6 +263,52 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [preview, setPreview] = useState<PreviewState>({
+    isOpen: false,
+    item: null,
+    contentType: '',
+  });
+
+  const handlePreview = (item: Record<string, unknown>, contentType: string) => {
+    setPreview({ isOpen: true, item, contentType });
+  };
+
+  const closePreview = () => {
+    setPreview({ isOpen: false, item: null, contentType: '' });
+  };
+
+  useEffect(() => {
+    if (preview.isOpen) {
+      document.body.style.overflow = 'hidden';
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          closePreview();
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.body.style.overflow = '';
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [preview.isOpen]);
+
+  useEffect(() => {
+    if (!editingId) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setEditingId(null);
+        setFormData({});
+        setSaveError(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [editingId]);
 
   const loadData = useCallback(async () => {
     if (!config || !portfolioId) return;
@@ -683,6 +745,31 @@ export default function ContentManager({ defaultTypeName }: ContentManagerProps)
                     Delete
                   </button>
                 )}
+                <button
+                  onClick={() => handlePreview(item, config.name || 'content')}
+                  style={styles.previewBtn}
+                >
+                  Preview
+                </button>
+
+                {preview.isOpen && preview.item && (
+                  <div style={styles.modalOverlay} onClick={closePreview}>
+                    <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                      <div style={styles.modalHeader}>
+                        <h3>Preview: {String(preview.item.name || preview.item.title || 'Content')}</h3>
+                        <button onClick={closePreview} style={styles.closeBtn}>×</button>
+                      </div>
+
+                      <div style={styles.modalBody}>
+                        {preview.contentType === 'theme' ? (
+                          <ThemePreview previewData={preview.item as any} />
+                        ) : (
+                          <GenericContentPreview item={preview.item} type={preview.contentType} />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))
@@ -924,5 +1011,68 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#fbbf24',
     fontSize: '11px',
     fontWeight: 500,
+  },
+  previewBtn: {
+    padding: '0.5rem 1rem',
+    background: 'var(--accent-bg)',
+    color: 'var(--secondary)',
+    border: '1px solid var(--accent-soft)',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    fontWeight: 500,
+  },
+
+  modalOverlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(0,0,0,0.6)',
+    backdropFilter: 'blur(4px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    padding: '2rem',
+  },
+
+  modalContent: {
+    background: 'var(--color-background)',
+    borderRadius: '16px',
+    width: '100%',
+    maxWidth: '700px',
+    maxHeight: '90vh',
+    overflow: 'auto',
+    boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+    border: '1px solid var(--gray)',
+  },
+
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '1.25rem 1.5rem',
+    borderBottom: '1px solid var(--gray)',
+    position: 'sticky',
+    top: 0,
+    background: 'var(--color-background)',
+    zIndex: 10,
+  },
+
+  modalBody: {
+    padding: '1.5rem',
+  },
+
+  closeBtn: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '8px',
+    border: 'none',
+    background: 'var(--gray-warm)',
+    color: 'var(--text)',
+    fontSize: '1.25rem',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 };

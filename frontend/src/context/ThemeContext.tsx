@@ -1,148 +1,243 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { supabase } from '../utils/supabase';
+import type { Theme } from '../utils/supabase';
 
-interface ThemeData {
-    primary: string;
-    primaryDark: string;
-    secondary: string;
-    accent: string;
-    accentSoft: string;
-    accentBg: string;
-    dark: string;
-    light: string;
-    gray: string;
-    grayWarm: string;
-    text: string;
-    textLight: string;
-    radius: string;
-    maxWidth: string;
-    fontFamily: string;
-    gradientDirection: string;
-    cardStyle: string;
-    buttonStyle: string;
-    enableAnimations: boolean;
-    darkMode: boolean;
+// ─── CSS VARIABLES INJECTOR ───
 
-    success?: string;
-    warning?: string;
-    danger?: string;
+export function applyThemeVariables(theme: Theme | null) {
+    if (!theme) return;
 
-    featured?: string;
+    const root = document.documentElement;
+    const isDark = !!theme.dark_mode;
+
+    // ─── Explicit Background / Surface ───
+    const backgroundColor =
+        theme.color_background ||
+        (isDark ? theme.color_dark || '#0f172a' : theme.color_light || '#ffffff');
+    const surfaceColor =
+        theme.color_surface ||
+        (isDark ? '#1e293b' : theme.color_light || '#f8fafc');
+
+    root.style.setProperty('--color-background', backgroundColor);
+    root.style.setProperty('--color-surface', surfaceColor);
+
+    // ─── Core Colors ───
+    root.style.setProperty('--primary', theme.color_primary);
+    root.style.setProperty('--color-primary', theme.color_primary);
+    root.style.setProperty('--primary-dark', theme.color_primary);
+    root.style.setProperty('--secondary', theme.color_secondary);
+    root.style.setProperty('--color-secondary', theme.color_secondary);
+    root.style.setProperty('--accent', theme.color_accent || theme.color_secondary);
+    root.style.setProperty('--color-accent', theme.color_accent || theme.color_secondary);
+    root.style.setProperty(
+        '--accent-light',
+        `color-mix(in srgb, ${theme.color_accent || theme.color_secondary} 30%, transparent)`
+    );
+    root.style.setProperty('--accent-soft', theme.color_accent_soft || '#bbf7d0');
+    root.style.setProperty('--accent-bg', theme.color_accent_bg || '#f0fdf4');
+    root.style.setProperty('--dark', theme.color_dark || '#1e1b4b');
+    root.style.setProperty('--color-dark', theme.color_dark || '#1e1b4b');
+    root.style.setProperty('--light', theme.color_light || '#ffffff');
+    root.style.setProperty('--color-light', theme.color_light || '#ffffff');
+    root.style.setProperty('--gray', theme.color_gray || '#e2e8f0');
+    root.style.setProperty('--color-gray', theme.color_gray || '#334155');
+    root.style.setProperty('--gray-warm', theme.color_gray_warm || '#f1f5f9');
+    root.style.setProperty('--text', theme.color_text || '#334155');
+    root.style.setProperty(
+        '--color-text',
+        isDark ? theme.color_light || '#e2e8f0' : theme.color_text || '#334155'
+    );
+    root.style.setProperty('--text-light', theme.color_text_muted || '#64748b');
+    root.style.setProperty(
+        '--color-text-muted',
+        isDark ? '#94a3b8' : theme.color_text_muted || '#64748b'
+    );
+
+    // ─── Semantic Colors ───
+    root.style.setProperty('--success', theme.color_success || '#22c55e');
+    root.style.setProperty('--color-success', theme.color_success || '#22c55e');
+    root.style.setProperty(
+        '--success-bg',
+        `color-mix(in srgb, ${theme.color_success || '#22c55e'} 10%, white)`
+    );
+    root.style.setProperty('--success-text', theme.color_success || '#22c55e');
+    root.style.setProperty(
+        '--success-border',
+        `color-mix(in srgb, ${theme.color_success || '#22c55e'} 30%, white)`
+    );
+    root.style.setProperty('--warning', theme.color_warning || '#f59e0b');
+    root.style.setProperty('--color-warning', theme.color_warning || '#f59e0b');
+    root.style.setProperty('--warning-dark', theme.color_warning || '#f59e0b');
+    root.style.setProperty(
+        '--warning-bg',
+        `color-mix(in srgb, ${theme.color_warning || '#f59e0b'} 10%, white)`
+    );
+    root.style.setProperty('--warning-text', theme.color_warning || '#f59e0b');
+    root.style.setProperty('--danger', theme.color_danger || '#ef4444');
+    root.style.setProperty('--color-danger', theme.color_danger || '#ef4444');
+    root.style.setProperty('--danger-dark', theme.color_danger || '#ef4444');
+    root.style.setProperty(
+        '--danger-darker',
+        `color-mix(in srgb, ${theme.color_danger || '#ef4444'} 70%, black)`
+    );
+    root.style.setProperty(
+        '--danger-bg',
+        `color-mix(in srgb, ${theme.color_danger || '#ef4444'} 10%, white)`
+    );
+    root.style.setProperty('--danger-text', theme.color_danger || '#ef4444');
+    root.style.setProperty(
+        '--danger-border',
+        `color-mix(in srgb, ${theme.color_danger || '#ef4444'} 30%, white)`
+    );
+    root.style.setProperty('--featured', theme.color_featured || '#fbbf24');
+    root.style.setProperty('--featured-glow', theme.color_featured || '#fbbf24');
+
+    // ─── Dark Mode Classes ───
+    if (isDark) {
+        root.style.setProperty('--dm-bg', theme.color_dark || '#0f172a');
+        root.style.setProperty(
+            '--dm-bg-secondary',
+            `color-mix(in srgb, ${theme.color_dark || '#0f172a'} 80%, ${theme.color_light || '#fff'})`
+        );
+        root.style.setProperty('--dm-text', theme.color_light || '#e2e8f0');
+        root.style.setProperty('--dm-text-light', theme.color_text_muted || '#94a3b8');
+        document.documentElement.classList.add('dark-mode', 'dark');
+    } else {
+        root.style.setProperty('--dm-bg', '#0f172a');
+        root.style.setProperty('--dm-bg-secondary', '#1e293b');
+        root.style.setProperty('--dm-text', '#e2e8f0');
+        root.style.setProperty('--dm-text-light', '#94a3b8');
+        document.documentElement.classList.remove('dark-mode', 'dark');
+    }
+
+    // ─── Layout ───
+    const borderRadius = Number(theme.border_radius) || 12;
+    root.style.setProperty('--radius', `${borderRadius}px`);
+    root.style.setProperty('--radius-sm', `${Math.max(4, borderRadius - 6)}px`);
+    root.style.setProperty('--radius-md', `${Math.max(6, borderRadius - 4)}px`);
+    root.style.setProperty('--radius-lg', `${Math.max(8, borderRadius - 2)}px`);
+    root.style.setProperty('--radius-pill', '999px');
+    root.style.setProperty('--radius-circle', '50%');
+    root.style.setProperty('--max-width', `${theme.max_width || 1200}px`);
+
+    // ─── Typography ───
+    const fontMap: Record<string, string> = {
+        system: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        inter: "'Inter', -apple-system, sans-serif",
+        roboto: "'Roboto', sans-serif",
+        poppins: "'Poppins', sans-serif",
+        montserrat: "'Montserrat', sans-serif",
+        serif: "Georgia, 'Times New Roman', serif",
+        mono: "'Fira Code', 'Consolas', monospace",
+    };
+    root.style.setProperty('--font-family', fontMap[theme.font_family] || fontMap.system);
+
+    // ─── Gradients ───
+    const gradDir = theme.gradient_direction || '135deg';
+    root.style.setProperty('--gradient-direction', gradDir);
+    root.style.setProperty(
+        '--gradient-primary',
+        `linear-gradient(${gradDir}, ${theme.color_primary}, ${theme.color_secondary})`
+    );
+    root.style.setProperty(
+        '--gradient-primary-accent',
+        `linear-gradient(90deg, ${theme.color_primary}, ${theme.color_accent || theme.color_secondary})`
+    );
+    root.style.setProperty(
+        '--gradient-danger',
+        `linear-gradient(${gradDir}, ${theme.color_danger || '#ef4444'}, ${theme.color_danger || '#ef4444'})`
+    );
+    root.style.setProperty(
+        '--gradient-danger-hover',
+        `linear-gradient(${gradDir}, ${theme.color_danger || '#ef4444'}, color-mix(in srgb, ${theme.color_danger || '#ef4444'} 70%, black))`
+    );
+    root.style.setProperty(
+        '--gradient-warning',
+        `linear-gradient(${gradDir}, ${theme.color_warning || '#f59e0b'}, ${theme.color_warning || '#f59e0b'})`
+    );
+    root.style.setProperty(
+        '--gradient-accent',
+        `linear-gradient(135deg, ${theme.color_accent_soft || '#bbf7d0'}, ${theme.color_accent_bg || '#f0fdf4'})`
+    );
+    root.style.setProperty(
+        '--gradient-skill',
+        `linear-gradient(90deg, ${theme.color_primary}, ${theme.color_accent || theme.color_secondary})`
+    );
+    root.style.setProperty(
+        '--gradient-dark',
+        `linear-gradient(180deg, ${theme.color_dark || '#1e1b4b'} 0%, color-mix(in srgb, ${theme.color_dark || '#1e1b4b'} 80%, ${theme.color_light || '#fff'}) 100%)`
+    );
+    root.style.setProperty(
+        '--gradient-light',
+        `linear-gradient(180deg, ${theme.color_light || '#fff'} 0%, ${theme.color_accent_bg || '#f0fdf4'} 100%)`
+    );
+
+    // ─── Component Tokens ───
+    root.style.setProperty('--card-radius', `${theme.border_radius || 12}px`);
+    root.style.setProperty('--card-glass', isDark ? 'rgba(255,255,255,0.05)' : 'white');
+    root.style.setProperty('--card-backdrop', theme.card_style === 'glass' ? 'blur(10px)' : 'none');
+    root.style.setProperty('--card-border', `1px solid ${theme.color_accent_soft || '#e2e8f0'}`);
+    root.style.setProperty('--btn-style', theme.button_style || 'gradient');
+    root.style.setProperty(
+        '--focus-ring',
+        `0 0 0 3px color-mix(in srgb, ${theme.color_accent || theme.color_secondary} 20%, transparent)`
+    );
+    root.style.setProperty(
+        '--focus-ring-danger',
+        `0 0 0 4px color-mix(in srgb, ${theme.color_danger || '#ef4444'} 15%, transparent)`
+    );
+    root.style.setProperty('--backdrop-blur', 'blur(10px)');
+    root.style.setProperty('--backdrop-blur-sm', 'blur(4px)');
 }
 
-const defaultTheme: ThemeData = {
-    primary: '#3b82f6',
-    primaryDark: '#2563eb',
-    secondary: '#8b5cf6',
-    accent: '#4ade80',
-    accentSoft: '#bbf7d0',
-    accentBg: '#f0fdf4',
-    dark: '#1e1b4b',
-    light: '#ffffff',
-    gray: '#e2e8f0',
-    grayWarm: '#f1f5f9',
-    text: '#334155',
-    textLight: '#64748b',
-    radius: '12',
-    maxWidth: '1200',
-    fontFamily: 'system',
-    gradientDirection: '135deg',
-    cardStyle: 'rounded',
-    buttonStyle: 'gradient',
-    enableAnimations: true,
-    darkMode: false,
-};
+// ─── CONTEXT ───
 
 interface ThemeContextType {
-    theme: ThemeData;
+    theme: Theme | null;
     loading: boolean;
     refreshTheme: () => Promise<void>;
+    applyTheme: (theme: Theme | null) => void;
 }
 
-const ThemeContext = createContext<ThemeContextType | null>(null);
+const ThemeContext = createContext<ThemeContextType>({
+    theme: null,
+    loading: true,
+    refreshTheme: async () => { },
+    applyTheme: () => { },
+});
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-    const [theme, setTheme] = useState<ThemeData>(defaultTheme);
+    const [theme, setTheme] = useState<Theme | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchTheme = async () => {
+    const applyTheme = useCallback((themeData: Theme | null) => {
+        applyThemeVariables(themeData);
+        setTheme(themeData);
+    }, []);
+
+    const refreshTheme = useCallback(async () => {
         try {
-            const res = await fetch(`${(import.meta as any).env?.VITE_APP_API_URL}/api/theme`);
-            const data = await res.json();
-            setTheme({ ...defaultTheme, ...data.data });
-        } catch {
-            setTheme(defaultTheme);
+            const { data } = await supabase
+                .from('themes')
+                .select('*')
+                .eq('is_active', true)
+                .single();
+            if (data) {
+                applyTheme(data as Theme);
+            }
+        } catch (err) {
+            console.error('Failed to refresh theme:', err);
         } finally {
             setLoading(false);
         }
-    };
+    }, [applyTheme]);
 
     useEffect(() => {
-        fetchTheme();
-    }, []);
-
-    // Apply CSS variables whenever theme changes
-    useEffect(() => {
-        const root = document.documentElement;
-        root.style.setProperty('--primary', theme.primary);
-        root.style.setProperty('--primary-dark', theme.primaryDark);
-        root.style.setProperty('--secondary', theme.secondary);
-        root.style.setProperty('--accent', theme.accent);
-        root.style.setProperty('--accent-soft', theme.accentSoft);
-        root.style.setProperty('--accent-bg', theme.accentBg);
-        root.style.setProperty('--dark', theme.dark);
-        root.style.setProperty('--light', theme.light);
-        root.style.setProperty('--gray', theme.gray);
-        root.style.setProperty('--gray-warm', theme.grayWarm);
-        root.style.setProperty('--text', theme.text);
-        root.style.setProperty('--text-light', theme.textLight);
-        root.style.setProperty('--radius', `${theme.radius}px`);
-        root.style.setProperty('--max-width', `${theme.maxWidth}px`);
-        root.style.setProperty('--gradient-direction', theme.gradientDirection);
-
-        root.style.setProperty('--success', theme.success || '#22c55e');
-        root.style.setProperty('--warning', theme.warning || '#f59e0b');
-        root.style.setProperty('--danger', theme.danger || '#ef4444');
-        root.style.setProperty('--featured', theme.featured || '#fbbf24');
-
-        // Font family
-        const fontMap: Record<string, string> = {
-            system: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-            inter: "'Inter', sans-serif",
-            roboto: "'Roboto', sans-serif",
-            poppins: "'Poppins', sans-serif",
-            montserrat: "'Montserrat', sans-serif",
-        };
-        root.style.setProperty('--font-family', fontMap[theme.fontFamily] || fontMap.system);
-
-        // Card style
-        root.style.setProperty('--card-radius', theme.cardStyle === 'sharp' ? '0px' : `${theme.radius}px`);
-        root.style.setProperty('--card-glass', theme.cardStyle === 'glass' ? 'rgba(255,255,255,0.8)' : 'white');
-        root.style.setProperty('--card-backdrop', theme.cardStyle === 'glass' ? 'blur(10px)' : 'none');
-
-        // Button style
-        root.style.setProperty('--btn-style', theme.buttonStyle);
-
-        // Dark mode class
-        if (theme.darkMode) {
-            root.classList.add('dark-mode');
-        } else {
-            root.classList.remove('dark-mode');
-        }
-
-        // Animations
-        if (!theme.enableAnimations) {
-            root.style.setProperty('--transition-base', '0s');
-            root.style.setProperty('--transition-fast', '0s');
-            root.style.setProperty('--transition-slow', '0s');
-        } else {
-            root.style.removeProperty('--transition-base');
-            root.style.removeProperty('--transition-fast');
-            root.style.removeProperty('--transition-slow');
-        }
-    }, [theme]);
+        refreshTheme();
+    }, [refreshTheme]);
 
     return (
-        <ThemeContext.Provider value={{ theme, loading, refreshTheme: fetchTheme }}>
+        <ThemeContext.Provider value={{ theme, loading, refreshTheme, applyTheme }}>
             {children}
         </ThemeContext.Provider>
     );
@@ -150,6 +245,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 export function useTheme() {
     const ctx = useContext(ThemeContext);
-    if (!ctx) throw new Error('useTheme must be inside ThemeProvider');
+    if (!ctx) throw new Error('useTheme must be used within a ThemeProvider');
     return ctx;
 }

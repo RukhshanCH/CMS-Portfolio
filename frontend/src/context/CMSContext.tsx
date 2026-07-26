@@ -1,3 +1,4 @@
+// src/contexts/CMSContext.tsx
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import { supabase } from '../utils/supabase';
 
@@ -20,15 +21,15 @@ export interface ContentItem {
 interface CMSContextType {
   contentTypes: ContentType[];
   refreshContentTypes: () => void;
-  getContent: (tableName: string) => Promise<ContentItem[]>;
-  getContentItem: (tableName: string, id: string) => Promise<ContentItem | null>;
-  createContent: (tableName: string, data: Record<string, unknown>) => Promise<ContentItem | null>;
-  updateContent: (tableName: string, id: string, data: Record<string, unknown>) => Promise<ContentItem | null>;
-  deleteContent: (tableName: string, id: string) => Promise<void>;
-  bulkDelete: (tableName: string, ids: string[]) => Promise<void>;
+  getContent: (tableName: string, portfolioId: string) => Promise<ContentItem[]>;
+  getContentItem: (tableName: string, id: string, portfolioId: string) => Promise<ContentItem | null>;
+  createContent: (tableName: string, data: Record<string, unknown>, portfolioId: string) => Promise<ContentItem | null>;
+  updateContent: (tableName: string, id: string, data: Record<string, unknown>, portfolioId: string) => Promise<ContentItem | null>;
+  deleteContent: (tableName: string, id: string, portfolioId: string) => Promise<void>;
+  bulkDelete: (tableName: string, ids: string[], portfolioId: string) => Promise<void>;
 }
 
-// ─── STATIC TABLE CONFIG (replaces API-driven content types) ───
+// ─── STATIC TABLE CONFIG ───
 
 const DEFAULT_CONTENT_TYPES: ContentType[] = [
   { id: '1', name: 'project', label: 'Projects', icon: '🚀', tableName: 'projects', isSingle: false },
@@ -39,51 +40,54 @@ const DEFAULT_CONTENT_TYPES: ContentType[] = [
   { id: '6', name: 'theme', label: 'Themes', icon: '🎨', tableName: 'themes', isSingle: false },
 ];
 
-// ─── CONTEXT ───
-
 const CMSContext = createContext<CMSContextType | null>(null);
 
 export function CMSProvider({ children }: { children: ReactNode }) {
   const [contentTypes] = useState<ContentType[]>(DEFAULT_CONTENT_TYPES);
 
-  // No-op — content types are now static
   const refreshContentTypes = useCallback(() => {
     // Static config, nothing to refresh
   }, []);
 
-  // ─── CRUD via Supabase ───
+  // ─── CRUD via Supabase (multi-tenant) ───
 
-  const getContent = async (tableName: string): Promise<ContentItem[]> => {
+  const getContent = async (tableName: string, portfolioId: string): Promise<ContentItem[]> => {
     const { data, error } = await supabase
       .from(tableName)
       .select('*')
-      .order('order_index', { ascending: true });
+      .eq('portfolio_id', portfolioId)
+      .order('display_order', { ascending: true }); // or 'order_index' if that's your column
 
     if (error) {
       console.error(`getContent(${tableName}) error:`, error);
       return [];
     }
-    return data || [];
+    return (data as ContentItem[]) || [];
   };
 
-  const getContentItem = async (tableName: string, id: string): Promise<ContentItem | null> => {
+  const getContentItem = async (tableName: string, id: string, portfolioId: string): Promise<ContentItem | null> => {
     const { data, error } = await supabase
       .from(tableName)
       .select('*')
       .eq('id', id)
+      .eq('portfolio_id', portfolioId)
       .single();
 
     if (error) {
       console.error(`getContentItem(${tableName}, ${id}) error:`, error);
       return null;
     }
-    return data;
+    return data as ContentItem;
   };
 
-  const createContent = async (tableName: string, payload: Record<string, unknown>): Promise<ContentItem | null> => {
+  const createContent = async (
+    tableName: string,
+    payload: Record<string, unknown>,
+    portfolioId: string
+  ): Promise<ContentItem | null> => {
     const { data, error } = await supabase
       .from(tableName)
-      .insert(payload)
+      .insert({ ...payload, portfolio_id: portfolioId })
       .select()
       .single();
 
@@ -91,19 +95,25 @@ export function CMSProvider({ children }: { children: ReactNode }) {
       console.error(`createContent(${tableName}) error:`, error);
       throw error;
     }
-    return data;
+    return data as ContentItem;
   };
 
-  const updateContent = async (tableName: string, id: string, payload: Record<string, unknown>): Promise<ContentItem | null> => {
-    // Remove fields that shouldn't be updated
+  const updateContent = async (
+    tableName: string,
+    id: string,
+    payload: Record<string, unknown>,
+    portfolioId: string
+  ): Promise<ContentItem | null> => {
     const cleanPayload = { ...payload };
     delete cleanPayload.id;
     delete cleanPayload.created_at;
+    delete cleanPayload.portfolio_id; // prevent changing ownership
 
     const { data, error } = await supabase
       .from(tableName)
       .update(cleanPayload)
       .eq('id', id)
+      .eq('portfolio_id', portfolioId)
       .select()
       .single();
 
@@ -111,14 +121,15 @@ export function CMSProvider({ children }: { children: ReactNode }) {
       console.error(`updateContent(${tableName}, ${id}) error:`, error);
       throw error;
     }
-    return data;
+    return data as ContentItem;
   };
 
-  const deleteContent = async (tableName: string, id: string): Promise<void> => {
+  const deleteContent = async (tableName: string, id: string, portfolioId: string): Promise<void> => {
     const { error } = await supabase
       .from(tableName)
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('portfolio_id', portfolioId);
 
     if (error) {
       console.error(`deleteContent(${tableName}, ${id}) error:`, error);
@@ -126,11 +137,12 @@ export function CMSProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const bulkDelete = async (tableName: string, ids: string[]): Promise<void> => {
+  const bulkDelete = async (tableName: string, ids: string[], portfolioId: string): Promise<void> => {
     const { error } = await supabase
       .from(tableName)
       .delete()
-      .in('id', ids);
+      .in('id', ids)
+      .eq('portfolio_id', portfolioId);
 
     if (error) {
       console.error(`bulkDelete(${tableName}) error:`, error);
@@ -156,6 +168,6 @@ export function CMSProvider({ children }: { children: ReactNode }) {
 
 export function useCMS() {
   const ctx = useContext(CMSContext);
-  if (!ctx) throw new Error('useCMS must be inside CMSProvider');
+  if (!ctx) throw new Error('useCMS must be used within a CMSProvider');
   return ctx;
 }
