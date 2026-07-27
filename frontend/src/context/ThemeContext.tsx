@@ -210,7 +210,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
                 .from('themes')
                 .select('*')
                 .eq('is_active', true)
-                .single();
+                .maybeSingle();
             if (data) {
                 applyTheme(data as Theme);
             }
