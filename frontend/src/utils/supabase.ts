@@ -266,22 +266,90 @@ export async function getProfile(userId: string) {
   return data;
 }
 
-// FIX D: Check if user is allowed to create portfolios
+// FIX D: Check if user is allowed to create portfolios (flag + limit)
 export async function canCreatePortfolio(): Promise<boolean> {
   const user = await getCurrentUser();
   if (!user) return false;
 
+  const profile = await getProfile(user.id);
+  if (!profile) return false;
+
+  // Must have explicit permission
+  if (profile.can_create_portfolios !== true) return false;
+
+  // Must not exceed max portfolio limit
+  const count = await getUserPortfolioCount(user.id);
+  const maxAllowed = profile.max_portfolios ?? 0;
+  return count < maxAllowed;
+}
+
+// NEW: Count how many portfolios this user owns
+export async function getUserPortfolioCount(userId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('portfolios')
+    .select('*', { count: 'exact', head: true })
+    .eq('owner_id', userId);
+
+  if (error) {
+    console.error('Error counting portfolios:', error);
+    return Infinity; // Fail closed — assume limit reached
+  }
+  return count || 0;
+}
+
+// NEW: Get user's portfolio limit info (for dashboard display)
+export async function getUserPortfolioLimitInfo(): Promise<{
+  canCreate: boolean;
+  currentCount: number;
+  maxAllowed: number;
+} | null> {
+  const user = await getCurrentUser();
+  if (!user) return null;
+
+  const profile = await getProfile(user.id);
+  if (!profile) return null;
+
+  const count = await getUserPortfolioCount(user.id);
+  const maxAllowed = profile.max_portfolios ?? 0;
+
+  return {
+    canCreate: profile.can_create_portfolios === true && count < maxAllowed,
+    currentCount: count,
+    maxAllowed,
+  };
+}
+
+// ─── ADMIN: USER MANAGEMENT ───
+
+// NEW: Fetch all profiles (for admin user management)
+export async function getAllProfiles(): Promise<any[]> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('can_create_portfolios')
-    .eq('id', user.id)
-    .single();
+    .select('id, email, full_name, can_create_portfolios, max_portfolios, created_at')
+    .order('created_at', { ascending: false });
 
-  if (error || !data) {
-    console.error('Error checking portfolio creation permission:', error);
+  if (error) {
+    console.error('Error fetching all profiles:', error);
+    return [];
+  }
+  return data || [];
+}
+
+// NEW: Admin updates a user's permissions
+export async function updateUserPermissions(
+  userId: string,
+  updates: { can_create_portfolios?: boolean; max_portfolios?: number }
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', userId);
+
+  if (error) {
+    console.error('Error updating user permissions:', error);
     return false;
   }
-  return data.can_create_portfolios === true;
+  return true;
 }
 
 // ─── PORTFOLIOS ───
@@ -365,10 +433,17 @@ export async function createPortfolio(title: string, slug: string, description?:
     return null;
   }
 
-  // FIX D: Check permission
-  const allowed = await canCreatePortfolio();
-  if (!allowed) {
+  // FIX D: Check permission + limit
+  const profile = await getProfile(user.id);
+  if (!profile || profile.can_create_portfolios !== true) {
     console.error('User does not have permission to create portfolios');
+    return null;
+  }
+
+  const count = await getUserPortfolioCount(user.id);
+  const maxAllowed = profile.max_portfolios ?? 0;
+  if (count >= maxAllowed) {
+    console.error(`Portfolio limit reached: ${count}/${maxAllowed}`);
     return null;
   }
 
@@ -513,16 +588,36 @@ export async function inviteUser(email: string, portfolioId: string): Promise<In
 
 // NEW: Fetch a single invitation by token (for validation)
 export async function getInvitationByToken(token: string): Promise<Invitation | null> {
+  console.log('🔍 getInvitationByToken called with token:', token?.slice(0, 16) + '...');
+
+  // FIX: Use .maybeSingle() instead of .single()
+  // .single() throws PGRST116 when 0 rows match (e.g., RLS blocks it)
+  // .maybeSingle() returns null gracefully
   const { data, error } = await supabase
     .from('invitations')
     .select('*, portfolios(title, slug)')
     .eq('token', token)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    console.error('Error fetching invitation by token:', error);
+    console.error('❌ Error fetching invitation by token:', error);
+    console.error('   Code:', error.code);
+    console.error('   Message:', error.message);
     return null;
   }
+
+  if (!data) {
+    console.warn('⚠️ No invitation found for this token (RLS may be blocking it)');
+    return null;
+  }
+
+  console.log('✅ Invitation found:', {
+    id: data.id,
+    email: data.email,
+    is_accepted: data.is_accepted,
+    expires_at: data.expires_at,
+  });
+
   return data;
 }
 
@@ -1133,6 +1228,114 @@ export function subscribeToPortfolioTable(
       callback
     )
     .subscribe();
+}
+
+
+// ─── ADMIN HELPERS ───
+
+export interface AdminUser {
+  id: string;
+  username: string;
+  email: string | null;
+  full_name: string | null;
+  role: string;
+  is_active: boolean;
+  last_login: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Check if current Supabase user is listed in admin_users
+export async function isCurrentUserAdmin(): Promise<boolean> {
+  const user = await getCurrentUser();
+  if (!user?.email) return false;
+
+  const { data, error } = await supabase
+    .from('admin_users')
+    .select('id')
+    .eq('email', user.email)
+    .eq('is_active', true)
+    .single();
+
+  if (error) {
+    // If no row found, error.code will be 'PGRST116'
+    return false;
+  }
+  return !!data;
+}
+
+// Fetch all admin accounts
+export async function getAdminUsers(): Promise<AdminUser[]> {
+  const { data, error } = await supabase
+    .from('admin_users')
+    .select('id, username, email, full_name, role, is_active, last_login, created_at, updated_at')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching admin users:', error);
+    return [];
+  }
+  return (data || []) as AdminUser[];
+}
+
+// Create a new admin account (also creates Supabase Auth user)
+export async function createAdminAccount(
+  username: string,
+  email: string,
+  password: string,
+  fullName: string,
+  role: string = 'admin'
+): Promise<{ success: boolean; error?: string }> {
+  // 1. Create Supabase Auth user
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+
+  if (authError) {
+    return { success: false, error: authError.message };
+  }
+
+  // 2. Insert into admin_users
+  const { error: insertError } = await supabase
+    .from('admin_users')
+    .insert({
+      username,
+      email,
+      full_name: fullName,
+      role,
+      password_hash: 'managed-by-supabase-auth', // Auth handled by Supabase
+      is_active: true,
+    });
+
+  if (insertError) {
+    console.error('Error creating admin record:', insertError);
+    return { success: false, error: 'Created auth user but failed to add admin record.' };
+  }
+
+  return { success: true };
+}
+
+// Update admin account
+export async function updateAdminAccount(
+  id: string,
+  updates: Partial<Pick<AdminUser, 'full_name' | 'role' | 'is_active'>>
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('admin_users')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error updating admin:', error);
+    return false;
+  }
+  return true;
+}
+
+// Soft-delete admin account
+export async function deactivateAdminAccount(id: string): Promise<boolean> {
+  return updateAdminAccount(id, { is_active: false });
 }
 
 // ─── PUBLIC READ (No auth required) ───

@@ -1,6 +1,7 @@
 // ============================================
-// pages/DashboardPage.tsx — Portfolio List & Create
+// pages/DashboardPage.tsx — Portfolio List & Create (FIXED)
 // Shows all portfolios user owns or is member of
+// Hides create UI if user lacks permission or hit limit
 // ============================================
 
 import React, { useState, useEffect } from 'react';
@@ -11,6 +12,8 @@ import {
   getMyInvitations,
   acceptInvitation,
   signOut,
+  getUserPortfolioLimitInfo,
+  isCurrentUserAdmin,
   type Portfolio,
   type Invitation
 } from '../utils/supabase';
@@ -27,6 +30,13 @@ export default function DashboardPage() {
   const [newSlug, setNewSlug] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  // NEW: Permission & limit state
+  const [canCreate, setCanCreate] = useState(false);
+  const [portfolioCount, setPortfolioCount] = useState(0);
+  const [maxPortfolios, setMaxPortfolios] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -34,17 +44,28 @@ export default function DashboardPage() {
 
   async function loadData() {
     setLoading(true);
-    const [myPortfolios, myInvites] = await Promise.all([
+    const [myPortfolios, myInvites, limitInfo, adminStatus] = await Promise.all([
       getMyPortfolios(),
       getMyInvitations(),
+      getUserPortfolioLimitInfo(),
+      isCurrentUserAdmin(),
     ]);
+    setIsAdmin(adminStatus);
     setPortfolios(myPortfolios);
     setInvitations(myInvites);
+
+    if (limitInfo) {
+      setCanCreate(limitInfo.canCreate);
+      setPortfolioCount(limitInfo.currentCount);
+      setMaxPortfolios(limitInfo.maxAllowed);
+    }
+
     setLoading(false);
   }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
+    setCreateError(null);
 
     const slug = newSlug.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     if (!newTitle || !newSlug) return;
@@ -57,7 +78,16 @@ export default function DashboardPage() {
       setNewTitle('');
       setNewSlug('');
       setNewDescription('');
+      setCreateError(null);
+      // Refresh limit info
+      await loadData();
       navigate(`/admin/${portfolio.id}`);
+    } else {
+      setCreateError(
+        maxPortfolios > 0
+          ? `Could not create portfolio. You may have reached your limit (${portfolioCount}/${maxPortfolios}).`
+          : 'Could not create portfolio. You do not have permission.'
+      );
     }
     setCreating(false);
   }
@@ -65,7 +95,7 @@ export default function DashboardPage() {
   async function handleAcceptInvite(token: string) {
     const success = await acceptInvitation(token);
     if (success) {
-      await loadData(); // Refresh to show new portfolio
+      await loadData();
     }
   }
 
@@ -89,17 +119,41 @@ export default function DashboardPage() {
       <header className="dashboard-header">
         <h1 className="dashboard-header-title">My Portfolios</h1>
         <div className="dashboard-header-actions">
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="btn btn-primary"
-          >
-            + New Portfolio
-          </button>
+          {/* FIX: Only show create button if user has permission */}
+          {canCreate && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="btn btn-primary"
+            >
+              + New Portfolio
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              onClick={() => window.location.href = '/admin-panel'}
+              className="btn-ghost-sm"
+              style={{ color: '#f59e0b' }}
+            >
+              ⚙️ Admin Panel
+            </button>
+          )}
           <button onClick={handleLogout} className="btn-ghost-sm">
             Sign Out
           </button>
         </div>
       </header>
+
+      {/* NEW: Portfolio usage indicator */}
+      {maxPortfolios > 0 && (
+        <div className="dashboard-section" style={{ paddingBottom: 0 }}>
+          <p className="text-muted" style={{ fontSize: 14, color: '#64748b' }}>
+            Portfolios: <strong>{portfolioCount}</strong> / {maxPortfolios}
+            {!canCreate && portfolioCount >= maxPortfolios && (
+              <span style={{ color: '#ef4444', marginLeft: 8 }}>Limit reached</span>
+            )}
+          </p>
+        </div>
+      )}
 
       {/* Invitations */}
       {invitations.length > 0 && (
@@ -153,14 +207,16 @@ export default function DashboardPage() {
           </div>
         ))}
 
-        {/* Create New Card */}
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="portfolio-add-card"
-        >
-          <span className="portfolio-add-icon">+</span>
-          <span className="portfolio-add-text">Create New Portfolio</span>
-        </button>
+        {/* FIX: Only show "Create New" card if user has permission */}
+        {canCreate && (
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="portfolio-add-card"
+          >
+            <span className="portfolio-add-icon">+</span>
+            <span className="portfolio-add-text">Create New Portfolio</span>
+          </button>
+        )}
       </div>
 
       {/* Create Modal */}
@@ -168,6 +224,13 @@ export default function DashboardPage() {
         <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
           <div className="modal-dark" onClick={(e) => e.stopPropagation()}>
             <h2 className="modal-title-dashboard">Create New Portfolio</h2>
+
+            {createError && (
+              <div className="alert alert-error" style={{ marginBottom: 16 }}>
+                {createError}
+              </div>
+            )}
+
             <form onSubmit={handleCreate} className="modal-form">
               <div className="form-group">
                 <label className="form-label-sm">Title *</label>
@@ -207,7 +270,10 @@ export default function DashboardPage() {
               <div className="modal-actions-row">
                 <button
                   type="button"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setCreateError(null);
+                  }}
                   className="btn-modal-cancel"
                 >
                   Cancel

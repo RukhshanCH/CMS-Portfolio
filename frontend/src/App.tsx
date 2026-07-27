@@ -1,6 +1,6 @@
 // ============================================
 // App.tsx — Complete Multi-Tenant Portfolio CMS
-// Public portfolio view + Auth + Dashboard + Admin + Invites
+// Public portfolio view + Auth + Dashboard + Admin + Invites + Super Admin Panel
 // ============================================
 
 import {
@@ -33,7 +33,7 @@ import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import InvitePage from './pages/InvitePage';
 
-// ─── ADMIN ───
+// ─── ADMIN (Portfolio-scoped) ───
 import AdminLayout from './layouts/AdminLayout';
 import AdminDashboard from './components/cms/AdminDashboard';
 import ContentManager from './components/cms/ContentManager';
@@ -41,6 +41,12 @@ import ContentTypeBuilder from './components/cms/ContentTypeBuilder';
 import PageBuilder from './components/cms/PageBuilder';
 import MembersPage from './admin/MembersPage';
 import InboxPage from './admin/InboxPage';
+
+// ─── SUPER ADMIN PANEL ───
+import AdminPanelLayout from './layouts/AdminPanelLayout';
+import AdminOverviewPage from './admin/AdminOverviewPage';
+import AdminAccountsPage from './admin/AdminAccountsPage';
+import AdminUserPermissionsPage from './admin/AdminUserPermissionsPage';
 
 import './App.css';
 import PublicPortfolio from './pages/PublicPorfolio';
@@ -168,7 +174,6 @@ function HomePage() {
         supabase.from('contact').select('*').eq('portfolio_id', pid).eq('is_active', true).single(),
       ]);
 
-      // Log individual errors but don't fail entirely
       if (themeErr) console.warn('Theme fetch error:', themeErr);
       if (heroErr) console.warn('Hero fetch error:', heroErr);
       if (aboutErr) console.warn('About fetch error:', aboutErr);
@@ -236,7 +241,7 @@ function HomePage() {
   );
 }
 
-// ─── ADMIN ROUTES ───
+// ─── ADMIN ROUTES (Portfolio-scoped) ───
 
 function AdminRoutes() {
   const { portfolioId } = useParams<{ portfolioId: string }>();
@@ -287,6 +292,22 @@ function AdminRoutes() {
   );
 }
 
+// ─── SUPER ADMIN PANEL ROUTES ───
+
+function AdminPanelRoutes() {
+  return (
+    <RequireAuth>
+      <AdminPanelLayout>
+        <Routes>
+          <Route index element={<AdminOverviewPage />} />
+          <Route path="accounts" element={<AdminAccountsPage />} />
+          <Route path="users" element={<AdminUserPermissionsPage />} />
+        </Routes>
+      </AdminPanelLayout>
+    </RequireAuth>
+  );
+}
+
 // ─── APP ───
 
 export default function App() {
@@ -314,6 +335,9 @@ export default function App() {
 
           {/* Admin — Portfolio-scoped */}
           <Route path="/admin/:portfolioId/*" element={<AdminRoutes />} />
+
+          {/* Super Admin Panel */}
+          <Route path="/admin-panel/*" element={<AdminPanelRoutes />} />
 
           {/* Legacy admin redirect */}
           <Route path="/admin" element={<Navigate to="/dashboard" replace />} />

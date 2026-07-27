@@ -4288,6 +4288,22 @@ a {
   color: var(--light);
 }
 
+.btn-outline-sm {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--success);
+  background: transparent;
+  color: var(--success);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-outline-sm:hover {
+  background: var(--success);
+  color: var(--light);
+}
+
 .badge-inactive {
   padding: 2px 8px;
   border-radius: 10px;
