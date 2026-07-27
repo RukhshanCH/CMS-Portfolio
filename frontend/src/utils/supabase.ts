@@ -318,19 +318,10 @@ export async function createPortfolio(title: string, slug: string, description?:
     return null;
   }
 
-  // FIX: Add creator as owner in portfolio_members (required for multi-tenant RLS)
-  const { error: memberError } = await supabase
-    .from('portfolio_members')
-    .insert({
-      portfolio_id: data.id,
-      user_id: user.id,
-      role: 'owner',
-      invited_by: null,
-    });
-
-  if (memberError) {
-    console.error('Error adding owner to portfolio_members:', memberError);
-  }
+  // Trigger automatically creates:
+  // - site_settings, contact, hero, about, default theme
+  // - portfolio_members (owner row)
+  // No need to insert portfolio_members here.
 
   return data;
 }
