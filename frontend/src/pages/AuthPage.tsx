@@ -6,10 +6,23 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { signIn, signUp, getSession } from '../utils/supabase';
 
+// FIX: Whitelist-safe redirect validator
+function safeRedirect(url: string | null): string {
+  if (!url) return '/dashboard';
+  // Only allow relative paths or same-origin absolute paths
+  // Reject protocol-relative (//evil.com) and absolute URLs
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('//')) {
+    return '/dashboard';
+  }
+  // Must start with /
+  if (!url.startsWith('/')) return '/dashboard';
+  return url;
+}
+
 export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const redirectTo = searchParams.get('redirect') || '/dashboard';
+  const redirectTo = safeRedirect(searchParams.get('redirect'));
 
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -19,17 +32,22 @@ export default function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  // FIX: Block render until session check completes
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
     checkExistingSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function checkExistingSession() {
     const session = await getSession();
     if (session) {
-      console.log('Already logged in, redirecting to', redirectTo);
+      // FIX: If there's a pending invite token, redirect there first
+      const pendingToken = sessionStorage.getItem('pending_invite_token');
+      if (pendingToken) {
+        navigate(`/invite/${pendingToken}`, { replace: true });
+        return;
+      }
       navigate(redirectTo, { replace: true });
     }
     setCheckingSession(false);
@@ -58,13 +76,20 @@ export default function AuthPage() {
         }
 
         if (!data.session) {
-          setMessage('Check your email for confirmation link, or sign in if email confirmation is disabled.');
+          // FIX: Clearer message for email confirmation flow
+          setMessage('Account created! Please check your email and click the confirmation link.');
           setLoading(false);
           return;
         }
 
-        console.log('Signup successful, session exists, redirecting...');
-        navigate(redirectTo, { replace: true });
+        // Session exists immediately (email confirmation disabled)
+        // FIX: Check for pending invite token before generic redirect
+        const pendingToken = sessionStorage.getItem('pending_invite_token');
+        if (pendingToken) {
+          navigate(`/invite/${pendingToken}`, { replace: true });
+        } else {
+          navigate(redirectTo, { replace: true });
+        }
 
       } else {
         const { data, error: signInError } = await signIn(email, password);
@@ -75,17 +100,19 @@ export default function AuthPage() {
             msg = 'Invalid email or password.';
           }
           if (signInError.message.includes('Email not confirmed')) {
-            msg = 'Email not confirmed. Check your inbox, or ask the admin to disable email confirmation in Supabase settings.';
+            msg = 'Email not confirmed. Please check your inbox for the confirmation link.';
           }
           throw new Error(msg);
         }
 
         if (data.session) {
-          console.log('Login successful, session:', data.session.user?.email);
-          console.log('Redirecting to:', redirectTo);
-          setTimeout(() => {
+          // FIX: Check for pending invite token before generic redirect
+          const pendingToken = sessionStorage.getItem('pending_invite_token');
+          if (pendingToken) {
+            navigate(`/invite/${pendingToken}`, { replace: true });
+          } else {
             navigate(redirectTo, { replace: true });
-          }, 100);
+          }
         } else {
           throw new Error('No session returned. Please try again.');
         }
@@ -98,7 +125,6 @@ export default function AuthPage() {
     }
   };
 
-  // FIX: Early-return loader so the form never flashes
   if (checkingSession) {
     return (
       <div className="auth-page">
@@ -135,6 +161,7 @@ export default function AuthPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoFocus
               className="form-input-dark"
               placeholder="you@example.com"
             />

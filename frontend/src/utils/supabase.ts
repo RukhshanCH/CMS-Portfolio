@@ -48,6 +48,8 @@ export interface Invitation {
   is_accepted: boolean;
   accepted_at: string | null;
   created_at: string;
+  // Populated when joining with portfolios table
+  portfolios?: { title: string; slug: string };
 }
 
 export interface Theme {
@@ -264,20 +266,75 @@ export async function getProfile(userId: string) {
   return data;
 }
 
+// FIX D: Check if user is allowed to create portfolios
+export async function canCreatePortfolio(): Promise<boolean> {
+  const user = await getCurrentUser();
+  if (!user) return false;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('can_create_portfolios')
+    .eq('id', user.id)
+    .single();
+
+  if (error || !data) {
+    console.error('Error checking portfolio creation permission:', error);
+    return false;
+  }
+  return data.can_create_portfolios === true;
+}
+
 // ─── PORTFOLIOS ───
 
+// FIX C: Fetch portfolios the user OWNS or is a MEMBER of
 export async function getMyPortfolios(): Promise<Portfolio[]> {
-  const { data, error } = await supabase
+  const user = await getCurrentUser();
+  if (!user) return [];
+
+  // 1. Fetch portfolios I own
+  const { data: owned, error: ownedError } = await supabase
     .from('portfolios')
     .select('*')
+    .eq('owner_id', user.id)
     .eq('is_active', true)
     .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching portfolios:', error);
-    return [];
+  if (ownedError) {
+    console.error('Error fetching owned portfolios:', ownedError);
   }
-  return data || [];
+
+  // 2. Fetch portfolio IDs where I am a member
+  const { data: memberRows, error: memberError } = await supabase
+    .from('portfolio_members')
+    .select('portfolio_id')
+    .eq('user_id', user.id);
+
+  if (memberError) {
+    console.error('Error fetching member rows:', memberError);
+    return owned || [];
+  }
+
+  let memberPortfolios: Portfolio[] = [];
+  if (memberRows && memberRows.length > 0) {
+    const portfolioIds = memberRows.map(m => m.portfolio_id);
+    const { data: mp, error: mpError } = await supabase
+      .from('portfolios')
+      .select('*')
+      .in('id', portfolioIds)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+
+    if (mpError) {
+      console.error('Error fetching member portfolios:', mpError);
+    } else {
+      memberPortfolios = mp || [];
+    }
+  }
+
+  // 3. Merge and deduplicate (in case owner is also a member)
+  const all = [...(owned || []), ...memberPortfolios];
+  const unique = Array.from(new Map(all.map(p => [p.id, p])).values());
+  return unique.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
 export async function getPortfolioBySlug(slug: string): Promise<Portfolio | null> {
@@ -294,6 +351,7 @@ export async function getPortfolioBySlug(slug: string): Promise<Portfolio | null
   return data;
 }
 
+// FIX D: Only allow portfolio creation if user has permission
 export async function createPortfolio(title: string, slug: string, description?: string): Promise<Portfolio | null> {
   const cleanSlug = slug.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
   if (!cleanSlug) {
@@ -307,9 +365,17 @@ export async function createPortfolio(title: string, slug: string, description?:
     return null;
   }
 
+  // FIX D: Check permission
+  const allowed = await canCreatePortfolio();
+  if (!allowed) {
+    console.error('User does not have permission to create portfolios');
+    return null;
+  }
+
+  // FIX: Include owner_id in the insert
   const { data, error } = await supabase
     .from('portfolios')
-    .insert({ title, slug: cleanSlug, description })
+    .insert({ title, slug: cleanSlug, description, owner_id: user.id })
     .select()
     .single();
 
@@ -327,6 +393,21 @@ export async function createPortfolio(title: string, slug: string, description?:
 }
 
 export async function updatePortfolio(id: string, updates: Partial<Portfolio>): Promise<boolean> {
+  const user = await getCurrentUser();
+  if (!user) return false;
+
+  // FIX: Verify ownership before updating
+  const { data: portfolio } = await supabase
+    .from('portfolios')
+    .select('owner_id')
+    .eq('id', id)
+    .single();
+
+  if (!portfolio || portfolio.owner_id !== user.id) {
+    console.error('Unauthorized: only owner can update portfolio');
+    return false;
+  }
+
   const { error } = await supabase
     .from('portfolios')
     .update(updates)
@@ -340,6 +421,21 @@ export async function updatePortfolio(id: string, updates: Partial<Portfolio>): 
 }
 
 export async function deletePortfolio(id: string): Promise<boolean> {
+  const user = await getCurrentUser();
+  if (!user) return false;
+
+  // FIX: Verify ownership before deleting
+  const { data: portfolio } = await supabase
+    .from('portfolios')
+    .select('owner_id')
+    .eq('id', id)
+    .single();
+
+  if (!portfolio || portfolio.owner_id !== user.id) {
+    console.error('Unauthorized: only owner can delete portfolio');
+    return false;
+  }
+
   const { error } = await supabase
     .from('portfolios')
     .delete()
@@ -354,6 +450,7 @@ export async function deletePortfolio(id: string): Promise<boolean> {
 
 // ─── INVITATIONS ───
 
+// FIX B: Send email via Edge Function after creating invitation
 export async function inviteUser(email: string, portfolioId: string): Promise<Invitation | null> {
   const user = await getCurrentUser();
   if (!user) {
@@ -366,14 +463,64 @@ export async function inviteUser(email: string, portfolioId: string): Promise<In
     .insert({
       email,
       portfolio_id: portfolioId,
-      invited_by: user.id,        // ← REQUIRED for RLS
+      invited_by: user.id,
       expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
     })
     .select()
     .single();
 
   if (error) {
-    console.error('Error creating invitation:', JSON.stringify(error, null, 2)); // ← better logging
+    console.error('Error creating invitation:', JSON.stringify(error, null, 2));
+    return null;
+  }
+
+  // FIX B: Send invitation email via Edge Function
+  if (data) {
+    try {
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-invite-email', {
+        body: {
+          email,
+          token: data.token,
+          portfolioId,
+          invitedBy: user.id,
+        },
+      });
+
+      if (emailError) {
+        // FunctionsHttpError hides the response body — extract it from error.context
+        let errorBody: any = {};
+        try {
+          // error.context is the raw Response object
+          errorBody = await (emailError as any).context?.json?.() || {};
+        } catch {
+          errorBody = { error: emailError.message };
+        }
+        console.error('Edge function error body:', errorBody);
+        console.error('Edge function status:', (emailError as any).context?.status);
+        // Log but don't fail the invitation — the DB row was already created
+        console.warn('Invitation created but email failed to send. Reason:', errorBody.error || emailError.message);
+      } else {
+        console.log('Invitation email sent:', emailData);
+      }
+    } catch (emailErr: any) {
+      // Network-level or unexpected error
+      console.error('Failed to send invitation email:', emailErr?.message || emailErr);
+    }
+  }
+
+  return data;
+}
+
+// NEW: Fetch a single invitation by token (for validation)
+export async function getInvitationByToken(token: string): Promise<Invitation | null> {
+  const { data, error } = await supabase
+    .from('invitations')
+    .select('*, portfolios(title, slug)')
+    .eq('token', token)
+    .single();
+
+  if (error) {
+    console.error('Error fetching invitation by token:', error);
     return null;
   }
   return data;
@@ -475,6 +622,29 @@ export async function getPortfolioMembersWithEmails(portfolioId: string): Promis
   }));
 }
 
+// FIX A: Fetch members AND accepted invitations merged together
+export async function getPortfolioMembersWithInvitations(portfolioId: string): Promise<(PortfolioMemberWithUser & { accepted_from_invite?: boolean; invite_email?: string; invite_accepted_at?: string | null })[]> {
+  const members = await getPortfolioMembersWithEmails(portfolioId);
+  const invitations = await getPortfolioInvitations(portfolioId);
+  const acceptedInvites = invitations.filter(i => i.is_accepted);
+
+  // Enrich members with accepted invitation metadata by matching email
+
+  // For members that came from invitations, try to match by invited_by + timing
+  // Since we can't perfectly match, we at least enrich with invite info if available
+  return members.map(m => {
+    const matchingInvite = acceptedInvites.find(inv =>
+      inv.email.toLowerCase() === m.user_email?.toLowerCase()
+    );
+    return {
+      ...m,
+      accepted_from_invite: !!matchingInvite,
+      invite_email: matchingInvite?.email,
+      invite_accepted_at: matchingInvite?.accepted_at,
+    };
+  });
+}
+
 export async function removeMember(portfolioId: string, userId: string): Promise<boolean> {
   const { error } = await supabase
     .from('portfolio_members')
@@ -520,7 +690,20 @@ export async function getAllThemes(portfolioId: string): Promise<Theme[]> {
   return data || [];
 }
 
+// FIX: Deactivate other themes before setting one active
 export async function setActiveTheme(portfolioId: string, themeId: string): Promise<boolean> {
+  // First, deactivate all themes for this portfolio
+  const { error: deactivateError } = await supabase
+    .from('themes')
+    .update({ is_active: false })
+    .eq('portfolio_id', portfolioId);
+
+  if (deactivateError) {
+    console.error('Error deactivating themes:', deactivateError);
+    return false;
+  }
+
+  // Then activate the selected one
   const { error } = await supabase
     .from('themes')
     .update({ is_active: true })
@@ -710,7 +893,8 @@ export async function getProjects(portfolioId: string, options?: { featuredOnly?
     .eq('portfolio_id', portfolioId)
     .order('display_order', { ascending: true });
 
-  if (options?.featuredOnly) query = query.eq('is_featured', true);
+  // FIX: Use correct column name `featured` instead of `is_featured`
+  if (options?.featuredOnly) query = query.eq('featured', true);
   if (options?.limit) query = query.limit(options.limit);
 
   const { data, error } = await query;

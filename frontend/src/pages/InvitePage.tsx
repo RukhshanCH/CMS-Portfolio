@@ -4,7 +4,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { acceptInvitation, getCurrentUser, signIn, signUp } from '../utils/supabase';
+import {
+  acceptInvitation,
+  getCurrentUser,
+  getInvitationByToken,
+  getSession,
+  signIn,
+  signUp,
+} from '../utils/supabase';
 
 export default function InvitePage() {
   const { token } = useParams<{ token: string }>();
@@ -13,35 +20,89 @@ export default function InvitePage() {
 
   const [step, setStep] = useState<'checking' | 'login' | 'accepting' | 'success' | 'error'>('checking');
   const [errorMsg, setErrorMsg] = useState('');
-
-  // FIX: Explicit gate to prevent any flash before auth check completes
   const [sessionChecked, setSessionChecked] = useState(false);
 
-  const [isLogin, setIsLogin] = useState(true);
+  // FIX: Default to Sign Up since most invitees don't have accounts yet
+  const [isLogin, setIsLogin] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    checkAuthAndAccept();
-  }, []);
+  // NEW: Store invitation details for validation
+  const [invitation, setInvitation] = useState<Awaited<ReturnType<typeof getInvitationByToken>>>(null);
 
-  async function checkAuthAndAccept() {
+  useEffect(() => {
+    // Persist token so user can return after email confirmation
+    if (token) {
+      sessionStorage.setItem('pending_invite_token', token);
+    }
+    loadInvitationAndCheckAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  async function loadInvitationAndCheckAuth() {
+    if (!token) {
+      setStep('error');
+      setErrorMsg('Invalid invitation link: no token provided.');
+      setSessionChecked(true);
+      return;
+    }
+
+    // NEW: Pre-fetch invitation to validate it
+    const inv = await getInvitationByToken(token);
+    setInvitation(inv);
+
+    if (!inv) {
+      setStep('error');
+      setErrorMsg('This invitation link is invalid, expired, or has already been used.');
+      setSessionChecked(true);
+      return;
+    }
+
+    if (inv.is_accepted) {
+      setStep('error');
+      setErrorMsg('This invitation has already been accepted.');
+      setSessionChecked(true);
+      return;
+    }
+
+    if (new Date(inv.expires_at) < new Date()) {
+      setStep('error');
+      setErrorMsg('This invitation has expired.');
+      setSessionChecked(true);
+      return;
+    }
+
+    // Pre-fill email from invitation
+    setEmail(inv.email);
+
     const user = await getCurrentUser();
 
     if (user) {
+      // NEW: Validate that logged-in user's email matches invitation email
+      if (user.email?.toLowerCase() !== inv.email.toLowerCase()) {
+        setStep('error');
+        setErrorMsg(
+          `You are signed in as ${user.email}, but this invitation was sent to ${inv.email}. Please sign out and use the correct account.`
+        );
+        setSessionChecked(true);
+        return;
+      }
+
       setStep('accepting');
-      const success = await acceptInvitation(token!);
+      const success = await acceptInvitation(token);
       if (success) {
         setStep('success');
+        sessionStorage.removeItem('pending_invite_token');
         setTimeout(() => navigate('/dashboard'), 2000);
       } else {
         setStep('error');
-        setErrorMsg('Invalid or expired invitation link.');
+        setErrorMsg('Failed to accept invitation. It may have expired or already been used.');
       }
     } else {
       setStep('login');
+      // Also check URL param for email fallback
       const inviteEmail = searchParams.get('email');
       if (inviteEmail) setEmail(inviteEmail);
     }
@@ -54,6 +115,11 @@ export default function InvitePage() {
     setErrorMsg('');
 
     try {
+      // NEW: Validate email matches invitation before proceeding
+      if (invitation && email.toLowerCase() !== invitation.email.toLowerCase()) {
+        throw new Error(`This invitation was sent to ${invitation.email}. Please use that email address.`);
+      }
+
       let authError = null;
 
       if (!isLogin) {
@@ -62,7 +128,26 @@ export default function InvitePage() {
         }
         const { error } = await signUp(email, password);
         authError = error;
+
         if (!error) {
+          // FIX: Check if a session was created immediately (email confirmation disabled)
+          const session = await getSession();
+          if (session) {
+            // User is signed in immediately — proceed to accept
+            setStep('accepting');
+            const success = await acceptInvitation(token!);
+            if (success) {
+              setStep('success');
+              sessionStorage.removeItem('pending_invite_token');
+              setTimeout(() => navigate('/dashboard'), 2000);
+            } else {
+              throw new Error('Failed to accept invitation. It may be expired or already used.');
+            }
+            setLoading(false);
+            return;
+          }
+
+          // Email confirmation required — tell user to check email
           setErrorMsg('Account created! Please check your email to confirm, then come back to this link.');
           setLoading(false);
           return;
@@ -74,11 +159,13 @@ export default function InvitePage() {
 
       if (authError) throw authError;
 
+      // After sign-in, accept the invitation
       setStep('accepting');
       const success = await acceptInvitation(token!);
 
       if (success) {
         setStep('success');
+        sessionStorage.removeItem('pending_invite_token');
         setTimeout(() => navigate('/dashboard'), 2000);
       } else {
         throw new Error('Failed to accept invitation. It may be expired or already used.');
@@ -91,7 +178,6 @@ export default function InvitePage() {
     }
   }
 
-  // FIX: Block everything until the initial auth check is done
   if (!sessionChecked) {
     return (
       <div className="auth-page">
@@ -158,6 +244,17 @@ export default function InvitePage() {
             ? 'Sign in to accept this portfolio invitation'
             : 'Create an account to join this portfolio'}
         </p>
+        <p className="auth-hint" style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>
+          {isLogin
+            ? 'Already have an account? Enter your credentials above.'
+            : 'New here? Pick a password and you are in!'}
+        </p>
+
+        {invitation?.portfolios?.title && (
+          <p className="auth-portfolio-name">
+            Portfolio: <strong>{invitation.portfolios.title}</strong>
+          </p>
+        )}
 
         {errorMsg && <div className="alert alert-error">{errorMsg}</div>}
 
@@ -171,6 +268,9 @@ export default function InvitePage() {
               required
               className="form-input-dark"
               placeholder="you@example.com"
+              // Lock email to invitation email
+              readOnly={!!invitation}
+              style={invitation ? { opacity: 0.7, cursor: 'not-allowed' } : undefined}
             />
           </div>
 

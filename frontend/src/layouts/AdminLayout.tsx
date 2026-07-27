@@ -1,6 +1,5 @@
 // ============================================
-// layouts/AdminLayout.tsx — Portfolio-scoped Admin Wrapper
-// Reads portfolioId from URL, loads data, provides context
+// layouts/AdminLayout.tsx — CLEAN FINAL (className version)
 // ============================================
 
 import React, {
@@ -18,12 +17,14 @@ import {
   useLocation,
 } from 'react-router-dom';
 import {
+  supabase,
   fetchAllPortfolioData,
   getPortfolioMembers,
   getPortfolioInvitations,
   inviteUser,
   removeMember,
   signOut,
+  getCurrentUser,
   type Portfolio,
   type PortfolioData,
   type PortfolioMember,
@@ -56,7 +57,6 @@ export const useAdmin = () => {
 };
 
 // ─── NAV ITEMS ───
-// Paths are route segments relative to /admin/:portfolioId
 
 const NAV_ITEMS = [
   { path: 'dashboard', label: '📊 Dashboard', id: 'dashboard' },
@@ -93,27 +93,64 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const inviteInputRef = useRef<HTMLInputElement>(null);
 
-  // Determine active tab from the last URL segment
   const pathParts = location.pathname.split('/').filter(Boolean);
   const currentSegment = pathParts[pathParts.length - 1] || '';
-  const activeTab =
-    NAV_ITEMS.find((item) => item.path === currentSegment)?.id || 'hero';
+  const activeTab = NAV_ITEMS.find((item) => item.path === currentSegment)?.id || 'dashboard';
+  const currentPageLabel = NAV_ITEMS.find((item) => item.id === activeTab)?.label || 'Dashboard';
 
-  const navPath = (segment: string) =>
-    `/admin/${portfolioId}${segment ? `/${segment}` : ''}`;
+  const navPath = (segment: string) => `/admin/${portfolioId}${segment ? `/${segment}` : ''}`;
+
+  // ─── Auth & Security Check ───
+  const verifyAccess = useCallback(async () => {
+    try {
+      const user = await getCurrentUser();
+      if (!user) {
+        navigate('/login', { replace: true });
+        return false;
+      }
+      if (!portfolioId) return false;
+
+      const { data: portfolio } = await supabase
+        .from('portfolios')
+        .select('owner_id')
+        .eq('id', portfolioId)
+        .single();
+
+      if (portfolio?.owner_id === user.id) return true;
+
+      const { data: member } = await supabase
+        .from('portfolio_members')
+        .select('id')
+        .eq('portfolio_id', portfolioId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (member) return true;
+
+      setError('You do not have access to this portfolio.');
+      return false;
+    } catch (err: any) {
+      console.error('verifyAccess error:', err);
+      setError(`Access check failed: ${err.message}`);
+      return false;
+    }
+  }, [portfolioId, navigate]);
 
   // ─── Data Loading ───
-
   const loadData = useCallback(async () => {
     if (!portfolioId) return;
     setLoading(true);
     setError(null);
 
     try {
+      const hasAccess = await verifyAccess();
+      if (!hasAccess) { setLoading(false); return; }
+
       const [portfolioData, membersData, invitesData] = await Promise.all([
         fetchAllPortfolioData(portfolioId),
         getPortfolioMembers(portfolioId),
@@ -124,29 +161,24 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       setMembers(membersData);
       setInvitations(invitesData);
     } catch (err: any) {
-      console.error('AdminLayout loadData failed:', err);
+      console.error('loadData error:', err);
       setError(err?.message || 'Failed to load portfolio data.');
     } finally {
       setLoading(false);
     }
-  }, [portfolioId]);
+  }, [portfolioId, verifyAccess]);
 
   useEffect(() => {
-    if (portfolioId) {
-      loadData();
-    }
+    if (portfolioId) loadData();
   }, [portfolioId, loadData]);
 
   // ─── Refresh Helpers ───
-
   const refreshData = useCallback(async () => {
     if (!portfolioId) return;
     try {
       const portfolioData = await fetchAllPortfolioData(portfolioId);
       setData(portfolioData);
-    } catch (err: any) {
-      console.error('refreshData failed:', err);
-    }
+    } catch (err: any) { console.error('refreshData failed:', err); }
   }, [portfolioId]);
 
   const refreshMembers = useCallback(async () => {
@@ -158,85 +190,73 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       ]);
       setMembers(membersData);
       setInvitations(invitesData);
-    } catch (err: any) {
-      console.error('refreshMembers failed:', err);
-    }
+    } catch (err: any) { console.error('refreshMembers failed:', err); }
   }, [portfolioId]);
 
   // ─── Invite ───
+  const handleInvite = useCallback(async (email: string) => {
+    if (!portfolioId || !email.trim()) return;
 
-  const handleInvite = useCallback(
-    async (email: string) => {
-      if (!portfolioId || !email.trim()) return;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setInviteError('Please enter a valid email address.');
+      setInviteSuccess(null);
+      return;
+    }
 
-      // Basic email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email.trim())) {
-        setInviteError('Please enter a valid email address.');
-        return;
-      }
+    setInviting(true);
+    setInviteError(null);
+    setInviteSuccess(null);
 
-      setInviting(true);
-      setInviteError(null);
-
-      try {
-        await inviteUser(email.trim(), portfolioId);
-        await refreshMembers();
-        setInviteEmail('');
+    try {
+      await inviteUser(email.trim(), portfolioId);
+      await refreshMembers();
+      setInviteEmail('');
+      setInviteSuccess(`Invitation sent to ${email.trim()}`);
+      setTimeout(() => {
         setShowInviteModal(false);
-      } catch (err: any) {
-        console.error('Invite failed:', err);
-        setInviteError(err?.message || 'Failed to send invitation.');
-      } finally {
-        setInviting(false);
-      }
-    },
-    [portfolioId, refreshMembers]
-  );
+        setInviteSuccess(null);
+      }, 1500);
+    } catch (err: any) {
+      console.error('Invite failed:', err);
+      setInviteError(err?.message || 'Failed to send invitation.');
+    } finally {
+      setInviting(false);
+    }
+  }, [portfolioId, refreshMembers]);
 
   // ─── Remove Member ───
-
-  const handleRemoveMember = useCallback(
-    async (userId: string) => {
-      if (!portfolioId) return;
-      const confirmed = window.confirm(
-        'Are you sure you want to remove this member?'
-      );
-      if (!confirmed) return;
-
-      try {
-        await removeMember(portfolioId, userId);
-        await refreshMembers();
-      } catch (err: any) {
-        console.error('Remove member failed:', err);
-        alert(err?.message || 'Failed to remove member.');
-      }
-    },
-    [portfolioId, refreshMembers]
-  );
+  const handleRemoveMember = useCallback(async (userId: string) => {
+    if (!portfolioId) return;
+    try {
+      await removeMember(portfolioId, userId);
+      await refreshMembers();
+    } catch (err: any) {
+      console.error('Remove member failed:', err);
+      throw err;
+    }
+  }, [portfolioId, refreshMembers]);
 
   // ─── Logout ───
-
   const handleLogout = useCallback(async () => {
     await signOut();
     navigate('/login');
   }, [navigate]);
 
-  // ─── Modal Escape Key ───
-
+  // ─── Modal Effects ───
   useEffect(() => {
     if (!showInviteModal) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowInviteModal(false);
-    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowInviteModal(false); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [showInviteModal]);
 
   useEffect(() => {
-    if (showInviteModal && inviteInputRef.current) {
-      inviteInputRef.current.focus();
-    }
+    if (showInviteModal && inviteInputRef.current) inviteInputRef.current.focus();
+  }, [showInviteModal]);
+
+  useEffect(() => {
+    if (!showInviteModal) { setInviteEmail(''); setInviteError(null); setInviteSuccess(null); }
   }, [showInviteModal]);
 
   // ─── Render ───
@@ -319,6 +339,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <button
               onClick={() => {
                 setInviteError(null);
+                setInviteSuccess(null);
                 setShowInviteModal(true);
               }}
               className="btn-invite"
@@ -343,10 +364,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <header className="admin-topbar">
             <div className="breadcrumbs">
               <Link to="/dashboard" className="breadcrumb-link">
-                Dashboard
+                Admin
               </Link>
               <span className="breadcrumb-sep">/</span>
-              <span className="breadcrumb-current">Admin</span>
+              <span className="breadcrumb-current">{currentPageLabel}</span>
             </div>
             <div className="top-actions">
               <a
@@ -388,6 +409,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               {inviteError && (
                 <div className="alert alert-error">{inviteError}</div>
               )}
+              {inviteSuccess && (
+                <div className="alert alert-success">
+                  {inviteSuccess}
+                  <p style={{ fontSize: 13, marginTop: 6, opacity: 0.8 }}>
+                    📧 If they don't see it, ask them to check their Spam/Junk folder.
+                  </p>
+                </div>
+              )}
 
               <div className="modal-form-group">
                 <label htmlFor="invite-email" className="form-label-sm">
@@ -409,10 +438,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
               <div className="modal-actions-row">
                 <button
-                  onClick={() => {
-                    setShowInviteModal(false);
-                    setInviteError(null);
-                  }}
+                  onClick={() => setShowInviteModal(false)}
                   className="btn-modal-cancel"
                 >
                   Cancel
