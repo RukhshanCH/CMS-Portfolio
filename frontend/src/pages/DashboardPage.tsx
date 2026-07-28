@@ -135,7 +135,7 @@ export default function DashboardPage() {
           )}
           {isAdmin && (
             <button
-              onClick={() => window.location.href = '/admin-panel'}
+              onClick={() => navigate('/admin-panel')}
               className="btn-ghost-sm"
               style={{ color: '#f59e0b' }}
             >
