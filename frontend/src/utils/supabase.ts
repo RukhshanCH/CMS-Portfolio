@@ -1245,23 +1245,71 @@ export interface AdminUser {
   updated_at: string;
 }
 
-// Check if current Supabase user is listed in admin_users
+// Check if current user is an admin (profiles.is_admin OR admin_users table)
 export async function isCurrentUserAdmin(): Promise<boolean> {
   const user = await getCurrentUser();
-  if (!user?.email) return false;
+  console.log('[isCurrentUserAdmin] Auth user id:', user?.id, 'email:', user?.email);
 
-  const { data, error } = await supabase
-    .from('admin_users')
-    .select('id')
-    .eq('email', user.email)
-    .eq('is_active', true)
-    .single();
-
-  if (error) {
-    // If no row found, error.code will be 'PGRST116'
+  if (!user) {
+    console.log('[isCurrentUserAdmin] Not logged in');
     return false;
   }
-  return !!data;
+
+  // CHECK 1: profiles.is_admin flag (set by first-user trigger or manual SQL)
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  console.log('[isCurrentUserAdmin] profiles.is_admin:', profile?.is_admin);
+
+  if (profile?.is_admin === true) {
+    console.log('[isCurrentUserAdmin] ✅ Matched via profiles.is_admin');
+    return true;
+  }
+
+  // CHECK 2: admin_users table (for manually added admins)
+  const { data: byId, error: idErr } = await supabase
+    .from('admin_users')
+    .select('id, email, username, role, is_active, user_id')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (idErr) console.error('[isCurrentUserAdmin] user_id query error:', idErr);
+
+  if (byId) {
+    console.log('[isCurrentUserAdmin] ✅ Matched by admin_users.user_id:', byId);
+    return true;
+  }
+
+  // FALLBACK: Match by email
+  if (user.email) {
+    const { data: byEmail, error: emailErr } = await supabase
+      .from('admin_users')
+      .select('id, email, username, role, is_active, user_id')
+      .ilike('email', user.email)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (emailErr) console.error('[isCurrentUserAdmin] email query error:', emailErr);
+
+    if (byEmail) {
+      console.log('[isCurrentUserAdmin] ✅ Matched by admin_users.email:', byEmail);
+      if (!byEmail.user_id) {
+        await supabase
+          .from('admin_users')
+          .update({ user_id: user.id })
+          .eq('id', byEmail.id);
+        console.log('[isCurrentUserAdmin] Auto-linked user_id');
+      }
+      return true;
+    }
+  }
+
+  console.log('[isCurrentUserAdmin] ❌ No admin match for user:', user.id, user.email);
+  return false;
 }
 
 // Fetch all admin accounts
@@ -1296,21 +1344,20 @@ export async function createAdminAccount(
     return { success: false, error: authError.message };
   }
 
-  // 2. Insert into admin_users
-  const { error: insertError } = await supabase
-    .from('admin_users')
-    .insert({
-      username,
-      email,
-      full_name: fullName,
-      role,
-      password_hash: 'managed-by-supabase-auth', // Auth handled by Supabase
-      is_active: true,
-    });
+  // 2. Insert into admin_users via RPC (bypasses RLS)
+  const { error: rpcError } = await supabase.rpc(
+    'create_admin_user_record',
+    {
+      p_username: username,
+      p_email: email,
+      p_full_name: fullName,
+      p_role: role,
+    }
+  );
 
-  if (insertError) {
-    console.error('Error creating admin record:', insertError);
-    return { success: false, error: 'Created auth user but failed to add admin record.' };
+  if (rpcError) {
+    console.error('Error creating admin record via RPC:', rpcError);
+    return { success: false, error: 'Created auth user but failed to add admin record: ' + rpcError.message };
   }
 
   return { success: true };
