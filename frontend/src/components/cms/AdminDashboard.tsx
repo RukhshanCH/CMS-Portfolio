@@ -41,7 +41,7 @@ export default function AdminDashboard() {
     },
     {
       label: 'Pending Invites',
-      value: invitations.length,
+      value: invitations.filter((i) => !i.is_accepted).length,
       icon: '📨',
       path: 'members',
     },

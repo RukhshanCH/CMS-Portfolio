@@ -236,7 +236,7 @@ export default function DashboardPage() {
                       border: '1px solid rgba(59,130,246,0.3)',
                     }}
                   >
-                    👤 Shared
+                    👤&nbsp;Shared
                   </span>
                 )}
                 {currentUserId && portfolio.owner_id === currentUserId && (
@@ -249,7 +249,7 @@ export default function DashboardPage() {
                       border: '1px solid rgba(245,158,11,0.3)',
                     }}
                   >
-                    👑 Owner
+                    👑&nbsp;Owner
                   </span>
                 )}
                 <span className={`badge-sm ${portfolio.is_published ? 'badge-success' : 'badge-muted'}`}>

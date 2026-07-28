@@ -30,7 +30,7 @@ export default function AdminOverviewPage() {
                 supabase.from('profiles').select('*', { count: 'exact', head: true }),
                 supabase.from('portfolios').select('*', { count: 'exact', head: true }),
                 supabase.from('admin_users').select('*', { count: 'exact', head: true }),
-                supabase.from('invitations').select('*', { count: 'exact', head: true }),
+                supabase.from('invitations').select('*', { count: 'exact', head: true }).eq('is_accepted', false),
             ]);
 
             setStats({
