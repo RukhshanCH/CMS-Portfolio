@@ -16,7 +16,8 @@ import {
   isCurrentUserAdmin,
   getCurrentUser,
   type Portfolio,
-  type Invitation
+  type Invitation,
+  type CreatePortfolioResult
 } from '../utils/supabase';
 
 export default function DashboardPage() {
@@ -77,8 +78,8 @@ export default function DashboardPage() {
 
     setCreating(true);
 
-    const portfolio = await createPortfolio(newTitle, slug, newDescription || undefined);
-    if (portfolio) {
+    const result: CreatePortfolioResult = await createPortfolio(newTitle, slug, newDescription || undefined);
+    if (result.portfolio && !result.error) {
       setShowCreateModal(false);
       setNewTitle('');
       setNewSlug('');
@@ -86,12 +87,11 @@ export default function DashboardPage() {
       setCreateError(null);
       // Refresh limit info
       await loadData();
-      navigate(`/admin/${portfolio.id}`);
+      navigate(`/admin/${result.portfolio.id}`);
     } else {
+      // Show the ACTUAL error from the DB, not a generic guess
       setCreateError(
-        maxPortfolios > 0
-          ? `Could not create portfolio. You may have reached your limit (${portfolioCount}/${maxPortfolios}).`
-          : 'Could not create portfolio. You do not have permission.'
+        result.error || 'Could not create portfolio. Please try again.'
       );
     }
     setCreating(false);
@@ -225,20 +225,7 @@ export default function DashboardPage() {
             <div className="portfolio-card-header">
               <h3 className="portfolio-card-title">{portfolio.title}</h3>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                {/* Ownership badge */}
-                {currentUserId && portfolio.owner_id !== currentUserId && (
-                  <span
-                    className="badge-sm"
-                    title="You were invited to edit this portfolio"
-                    style={{
-                      background: 'rgba(59,130,246,0.15)',
-                      color: '#60a5fa',
-                      border: '1px solid rgba(59,130,246,0.3)',
-                    }}
-                  >
-                    👤&nbsp;Shared
-                  </span>
-                )}
+                {/* Ownership badge — checks owner_id AND member role */}
                 {currentUserId && portfolio.owner_id === currentUserId && (
                   <span
                     className="badge-sm"
@@ -249,7 +236,34 @@ export default function DashboardPage() {
                       border: '1px solid rgba(245,158,11,0.3)',
                     }}
                   >
-                    👑&nbsp;Owner
+                    👑 Owner
+                  </span>
+                )}
+                {currentUserId && portfolio.owner_id !== currentUserId && (
+                  <span
+                    className="badge-sm"
+                    title="You were invited to edit this portfolio"
+                    style={{
+                      background: 'rgba(59,130,246,0.15)',
+                      color: '#60a5fa',
+                      border: '1px solid rgba(59,130,246,0.3)',
+                    }}
+                  >
+                    👤 Shared
+                  </span>
+                )}
+                {/* Fallback: if owner_id is null/missing, show warning */}
+                {currentUserId && !portfolio.owner_id && (
+                  <span
+                    className="badge-sm"
+                    title="Owner data missing — contact admin"
+                    style={{
+                      background: 'rgba(239,68,68,0.15)',
+                      color: '#ef4444',
+                      border: '1px solid rgba(239,68,68,0.3)',
+                    }}
+                  >
+                    ⚠️ No Owner
                   </span>
                 )}
                 <span className={`badge-sm ${portfolio.is_published ? 'badge-success' : 'badge-muted'}`}>

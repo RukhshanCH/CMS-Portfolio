@@ -288,7 +288,8 @@ export async function getUserPortfolioCount(userId: string): Promise<number> {
   const { count, error } = await supabase
     .from('portfolios')
     .select('*', { count: 'exact', head: true })
-    .eq('owner_id', userId);
+    .eq('owner_id', userId)
+    .eq('is_active', true);
 
   if (error) {
     console.error('Error counting portfolios:', error);
@@ -420,31 +421,32 @@ export async function getPortfolioBySlug(slug: string): Promise<Portfolio | null
 }
 
 // FIX D: Only allow portfolio creation if user has permission
-export async function createPortfolio(title: string, slug: string, description?: string): Promise<Portfolio | null> {
+export interface CreatePortfolioResult {
+  portfolio: Portfolio | null;
+  error: string | null;
+}
+
+export async function createPortfolio(title: string, slug: string, description?: string): Promise<CreatePortfolioResult> {
   const cleanSlug = slug.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
   if (!cleanSlug) {
-    console.error('Invalid slug');
-    return null;
+    return { portfolio: null, error: 'Invalid slug' };
   }
 
   const user = await getCurrentUser();
   if (!user) {
-    console.error('No authenticated user');
-    return null;
+    return { portfolio: null, error: 'No authenticated user' };
   }
 
   // FIX D: Check permission + limit
   const profile = await getProfile(user.id);
   if (!profile || profile.can_create_portfolios !== true) {
-    console.error('User does not have permission to create portfolios');
-    return null;
+    return { portfolio: null, error: 'You do not have permission to create portfolios' };
   }
 
   const count = await getUserPortfolioCount(user.id);
   const maxAllowed = profile.max_portfolios ?? 0;
   if (count >= maxAllowed) {
-    console.error(`Portfolio limit reached: ${count}/${maxAllowed}`);
-    return null;
+    return { portfolio: null, error: `Portfolio limit reached: ${count}/${maxAllowed}` };
   }
 
   // FIX: Include owner_id in the insert
@@ -454,9 +456,14 @@ export async function createPortfolio(title: string, slug: string, description?:
     .select()
     .single();
 
-  if (error || !data) {
+  if (error) {
     console.error('Error creating portfolio:', error);
-    return null;
+    // Return the actual DB error message so UI can show it
+    return { portfolio: null, error: error.message || 'Failed to create portfolio' };
+  }
+
+  if (!data) {
+    return { portfolio: null, error: 'No data returned after creation' };
   }
 
   // Trigger automatically creates:
@@ -464,7 +471,7 @@ export async function createPortfolio(title: string, slug: string, description?:
   // - portfolio_members (owner row)
   // No need to insert portfolio_members here.
 
-  return data;
+  return { portfolio: data, error: null };
 }
 
 export async function updatePortfolio(id: string, updates: Partial<Portfolio>): Promise<boolean> {
@@ -511,6 +518,34 @@ export async function deletePortfolio(id: string): Promise<boolean> {
     return false;
   }
 
+  // FIX: Manually delete children in order to avoid FK constraint errors
+  // (If CASCADE is set up in DB, this is redundant but harmless)
+  const tables = [
+    'contact_submissions',
+    'site_settings',
+    'contact',
+    'projects',
+    'skills',
+    'about',
+    'hero',
+    'themes',
+    'portfolio_members',
+    'invitations',
+  ];
+
+  for (const table of tables) {
+    const { error: childError } = await supabase
+      .from(table)
+      .delete()
+      .eq('portfolio_id', id);
+
+    if (childError) {
+      console.warn(`Warning: could not delete from ${table}:`, childError.message);
+      // Continue anyway — some tables might not have data
+    }
+  }
+
+  // Now delete the parent portfolio
   const { error } = await supabase
     .from('portfolios')
     .delete()

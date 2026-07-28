@@ -61,7 +61,7 @@ export const useAdmin = () => {
 const NAV_ITEMS = [
   { path: 'dashboard', label: '📊 Dashboard', id: 'dashboard' },
   { path: 'inbox', label: '📨 Inbox', id: 'inbox' },
-  { path: 'theme', label: '🎨 Theme', id: 'theme' },
+  { path: 'theme', label: '🎨 Themes', id: 'theme' },
   { path: 'hero', label: '🏠 Hero', id: 'hero' },
   { path: 'about', label: '👤 About', id: 'about' },
   { path: 'skills', label: '⭐ Skills', id: 'skills' },
