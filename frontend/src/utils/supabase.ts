@@ -622,9 +622,13 @@ export async function getInvitationByToken(token: string): Promise<Invitation | 
 }
 
 export async function getMyInvitations(): Promise<Invitation[]> {
+  const user = await getCurrentUser();
+  if (!user?.email) return [];
+
   const { data, error } = await supabase
     .from('invitations')
     .select('*, portfolios(title, slug)')
+    .eq('email', user.email)
     .eq('is_accepted', false)
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false });

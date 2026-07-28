@@ -14,6 +14,7 @@ import {
   signOut,
   getUserPortfolioLimitInfo,
   isCurrentUserAdmin,
+  getCurrentUser,
   type Portfolio,
   type Invitation
 } from '../utils/supabase';
@@ -37,6 +38,7 @@ export default function DashboardPage() {
   const [portfolioCount, setPortfolioCount] = useState(0);
   const [maxPortfolios, setMaxPortfolios] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -44,6 +46,9 @@ export default function DashboardPage() {
 
   async function loadData() {
     setLoading(true);
+    const user = await getCurrentUser();
+    setCurrentUserId(user?.id || null);
+
     const [myPortfolios, myInvites, limitInfo, adminStatus] = await Promise.all([
       getMyPortfolios(),
       getMyInvitations(),
@@ -180,6 +185,35 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Cannot Create Notice */}
+      {!canCreate && portfolios.length === 0 && (
+        <div className="dashboard-section" style={{ textAlign: 'center', padding: '40px 24px' }}>
+          <p style={{ fontSize: 48, margin: '0 0 12px' }}>🔒</p>
+          <h3 style={{ color: '#e2e8f0', margin: '0 0 8px' }}>Portfolio Creation Locked</h3>
+          <p className="text-muted" style={{ maxWidth: 400, margin: '0 auto 16px', lineHeight: 1.6 }}>
+            You do not have permission to create portfolios yet.
+            {invitations.length > 0
+              ? ' Accept a pending invitation below to get started, or contact your admin for access.'
+              : ' Contact your admin to request portfolio creation access.'}
+          </p>
+          {invitations.length === 0 && (
+            <p className="text-muted" style={{ fontSize: 13 }}>
+              Need help? Reach out to the person who invited you to this platform.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* At limit notice */}
+      {!canCreate && portfolioCount > 0 && portfolioCount >= maxPortfolios && maxPortfolios > 0 && (
+        <div className="dashboard-section" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+          <p style={{ color: '#ef4444', margin: 0, fontSize: 14 }}>
+            ⚠️ You have reached your portfolio limit ({portfolioCount}/{maxPortfolios}).
+            Contact your admin to increase your limit.
+          </p>
+        </div>
+      )}
+
       {/* Portfolios Grid */}
       <div className="portfolio-grid">
         {portfolios.map((portfolio) => (
@@ -190,9 +224,38 @@ export default function DashboardPage() {
           >
             <div className="portfolio-card-header">
               <h3 className="portfolio-card-title">{portfolio.title}</h3>
-              <span className={`badge-sm ${portfolio.is_published ? 'badge-success' : 'badge-muted'}`}>
-                {portfolio.is_published ? 'Published' : 'Draft'}
-              </span>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                {/* Ownership badge */}
+                {currentUserId && portfolio.owner_id !== currentUserId && (
+                  <span
+                    className="badge-sm"
+                    title="You were invited to edit this portfolio"
+                    style={{
+                      background: 'rgba(59,130,246,0.15)',
+                      color: '#60a5fa',
+                      border: '1px solid rgba(59,130,246,0.3)',
+                    }}
+                  >
+                    👤 Shared
+                  </span>
+                )}
+                {currentUserId && portfolio.owner_id === currentUserId && (
+                  <span
+                    className="badge-sm"
+                    title="You own this portfolio"
+                    style={{
+                      background: 'rgba(245,158,11,0.15)',
+                      color: '#fbbf24',
+                      border: '1px solid rgba(245,158,11,0.3)',
+                    }}
+                  >
+                    👑 Owner
+                  </span>
+                )}
+                <span className={`badge-sm ${portfolio.is_published ? 'badge-success' : 'badge-muted'}`}>
+                  {portfolio.is_published ? 'Published' : 'Draft'}
+                </span>
+              </div>
             </div>
             <p className="portfolio-slug">/{portfolio.slug}</p>
             {portfolio.description && (
